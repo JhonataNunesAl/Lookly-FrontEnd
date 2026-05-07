@@ -21,6 +21,7 @@ import { Product, InteractionType } from '../types';
 import { getNextProducts, recordInteraction, getProfile } from '../utils/algorithm';
 import Toast from '../components/Toast';
 import ProductDetailSheet from '../components/ProductDetailSheet';
+import { Ionicons } from '@expo/vector-icons';
 
 const { width, height } = Dimensions.get('window');
 const SWIPE_THRESHOLD = 90;
@@ -30,7 +31,6 @@ const SWIPE_THRESHOLD = 90;
 export default function FeedScreen(): React.ReactElement {
   const [queue, setQueue] = useState<Product[]>([]);
   const [loading, setLoading] = useState(true);
-  const [interactions, setInteractions] = useState(0);
   const [toastMsg, setToastMsg] = useState('');
   const [toastVisible, setToastVisible] = useState(false);
   const [detailProduct, setDetailProduct] = useState<Product | null>(null);
@@ -66,8 +66,6 @@ export default function FeedScreen(): React.ReactElement {
     ]);
     queueRef.current = products;
     setQueue(products);
-    setInteractions(profile.interactions);
-    interactionCountRef.current = profile.interactions;
     setLoading(false);
   }, []);
 
@@ -91,8 +89,6 @@ export default function FeedScreen(): React.ReactElement {
       setQueue([...remaining]);
     }
 
-    interactionCountRef.current += 1;
-    setInteractions(interactionCountRef.current);
 
     // Milestone toast every 10 interactions
     if (interactionCountRef.current % 10 === 0 && interactionCountRef.current > 0) {
@@ -184,7 +180,6 @@ export default function FeedScreen(): React.ReactElement {
     extrapolate: 'clamp',
   });
 
-  const progress = Math.min(interactions / 50, 1);
   const current = queue[0];
 
   // ── Loading state ─────────────────────────────────────────────────────────
@@ -224,27 +219,18 @@ export default function FeedScreen(): React.ReactElement {
     <View className="flex-1 bg-background">
       <StatusBar barStyle="light-content" backgroundColor="#0a0a0a" />
 
-      {/* Header */}
+     {/* Header */}
       <SafeAreaView>
-        <View className="flex-row items-start justify-between px-5 pt-2 pb-2">
-          <View>
-            <Text className="text-white text-2xl font-bold tracking-tight">
-              FitFeed
-            </Text>
-            {/* Progress bar — using inline style for the dynamic width */}
-            <View className="h-0.5 w-24 bg-surface-3 rounded-full mt-1.5">
-              <View
-                style={{ width: `${progress * 100}%` }}
-                className="h-full bg-brand rounded-full"
-              />
-            </View>
-          </View>
-
-          <View className="bg-brand/10 border border-brand/20 rounded-full px-3 py-1.5">
-            <Text className="text-brand-light text-xs font-semibold">
-              {interactions < 20 ? '🌀 explorando...' : '🧠 aprendendo seu gosto'}
-            </Text>
-          </View>
+        <View className="flex-row items-center justify-between px-5 pt-2 pb-2">
+          <Text className="text-white text-2xl font-bold tracking-tight">
+            Lookly
+          </Text>
+          <TouchableOpacity
+            onPress={() => setDetailProduct(current)}
+            className="w-9 h-9 rounded-full bg-surface items-center justify-center"
+          >
+            <Ionicons name="information-circle-outline" size={22} color="#666" />
+          </TouchableOpacity>
         </View>
       </SafeAreaView>
 
