@@ -15,38 +15,54 @@ import {
   ActivityIndicator,
   SafeAreaView,
   StatusBar,
+  ScrollView,
 } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
-import { Product, InteractionType } from '../types';
-import { getNextProducts, recordInteraction, getProfile } from '../utils/algorithm';
+import { InteractionType } from '../types';
+import { LookResponse, CategoryResponse } from '../types/api';
+import { fetchFeed, sendSwipe, saveLook } from '../lib/feed';
+import { fetchCategories } from '../lib/categories';
+import { formatarMoeda, formatarNumero } from '../utils/format';
 import Toast from '../components/Toast';
 import ProductDetailSheet from '../components/ProductDetailSheet';
 import { Ionicons } from '@expo/vector-icons';
+import { colors, PHOTO_SCRIM } from '../theme/colors';
+import { SwipeActionButton, SwipeStamp } from '../components/SwipeAction';
+import Button from '../components/Button';
 
 const { width, height } = Dimensions.get('window');
 const SWIPE_THRESHOLD = 90;
+/** Abaixo disso na fila, busca a próxima página. */
+const REFILL_AT = 5;
 
 // ─── Main component ───────────────────────────────────────────────────────────
 
 export default function FeedScreen(): React.ReactElement {
-  const [queue, setQueue] = useState<Product[]>([]);
+  const [queue, setQueue] = useState<LookResponse[]>([]);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(false);
   const [toastMsg, setToastMsg] = useState('');
   const [toastVisible, setToastVisible] = useState(false);
-  const [detailProduct, setDetailProduct] = useState<Product | null>(null);
+  const [detailLook, setDetailLook] = useState<LookResponse | null>(null);
+  const [categories, setCategories] = useState<CategoryResponse[]>([]);
+  const [selectedCategory, setSelectedCategory] = useState<string | null>(null);
 
   // ── Animation refs ────────────────────────────────────────────────────────
-  // position lives in a ref so PanResponder callbacks always access the same
-  // Animated.ValueXY without needing it in the dep array.
   const position = useRef(new Animated.ValueXY()).current;
 
   // Mutable refs for PanResponder (avoids stale-closure issues)
-  const queueRef = useRef<Product[]>([]);
+  const queueRef = useRef<LookResponse[]>([]);
   const isAnimating = useRef(false);
-  const interactionCountRef = useRef(0);
+  // Cursor de paginação e controle de "tem mais / já buscando".
+  const cursorRef = useRef<string | null>(null);
+  const hasMoreRef = useRef(true);
+  const loadingMoreRef = useRef(false);
+  // Categoria ativa em ref: o panResponder e o refill (advanceQueue) precisam
+  // sempre ler o valor atual, não o capturado na criação do callback.
+  const selectedCategoryRef = useRef<string | null>(null);
   // Indirection ref so the panResponder (created once) always calls the
   // latest version of handleAction without re-creating itself.
-  const handleActionRef = useRef<(type: InteractionType) => Promise<void>>();
+  const handleActionRef = useRef<((type: InteractionType) => Promise<void>) | undefined>(undefined);
 
   // ── Toast ─────────────────────────────────────────────────────────────────
 
@@ -60,43 +76,64 @@ export default function FeedScreen(): React.ReactElement {
 
   const loadData = useCallback(async () => {
     setLoading(true);
-    const [products, profile] = await Promise.all([
-      getNextProducts(30),
-      getProfile(),
-    ]);
-    queueRef.current = products;
-    setQueue(products);
-    setLoading(false);
+    setError(false);
+    cursorRef.current = null;
+    hasMoreRef.current = true;
+    try {
+      const res = await fetchFeed(null, selectedCategoryRef.current ?? undefined);
+      cursorRef.current = res.next_cursor;
+      if (!res.next_cursor) hasMoreRef.current = false;
+      queueRef.current = res.items;
+      setQueue(res.items);
+    } catch {
+      setError(true);
+    } finally {
+      setLoading(false);
+    }
   }, []);
 
   useEffect(() => { loadData(); }, [loadData]);
 
+  // Categorias reais (GET /api/categories) — buscadas uma vez, não dependem do feed.
+  useEffect(() => {
+    fetchCategories().then(setCategories).catch(() => {});
+  }, []);
+
+  // Trocar de categoria é uma consulta nova: reseta fila/cursor, não um filtro
+  // aplicado sobre o que já está na tela.
+  const selectCategory = useCallback((slug: string | null) => {
+    setSelectedCategory(slug);
+    selectedCategoryRef.current = slug;
+    loadData();
+  }, [loadData]);
+
   // ── Advance queue after swipe completes ───────────────────────────────────
 
   const advanceQueue = useCallback(async () => {
-    // Reset card position before rendering next item
     position.setValue({ x: 0, y: 0 });
 
     const remaining = queueRef.current.slice(1);
-
-    if (remaining.length < 5) {
-      const more = await getNextProducts(20);
-      const combined = [...remaining, ...more];
-      queueRef.current = combined;
-      setQueue([...combined]);
-    } else {
-      queueRef.current = remaining;
-      setQueue([...remaining]);
-    }
-
-
-    // Milestone toast every 10 interactions
-    if (interactionCountRef.current % 10 === 0 && interactionCountRef.current > 0) {
-      showToast('Seu perfil de estilo está evoluindo ✨');
-    }
-
+    queueRef.current = remaining;
+    setQueue([...remaining]);
     isAnimating.current = false;
-  }, [position, showToast]);
+
+    // Prefetch quando a fila afina (o backend já exclui looks vistos).
+    if (remaining.length < REFILL_AT && hasMoreRef.current && !loadingMoreRef.current) {
+      loadingMoreRef.current = true;
+      try {
+        const res = await fetchFeed(cursorRef.current, selectedCategoryRef.current ?? undefined);
+        cursorRef.current = res.next_cursor;
+        if (!res.next_cursor || res.items.length === 0) hasMoreRef.current = false;
+        const combined = [...queueRef.current, ...res.items];
+        queueRef.current = combined;
+        setQueue([...combined]);
+      } catch {
+        // silencioso: o usuário ainda tem a fila atual; tenta de novo no próximo swipe
+      } finally {
+        loadingMoreRef.current = false;
+      }
+    }
+  }, [position]);
 
   // ── Interaction handler ───────────────────────────────────────────────────
 
@@ -105,16 +142,31 @@ export default function FeedScreen(): React.ReactElement {
     isAnimating.current = true;
 
     const current = queueRef.current[0];
-    await recordInteraction(current, type);
+
+    // Rede otimista: registra em segundo plano, não trava a animação.
+    // v2: RIGHT = curtir; salvar é gesto à parte (e implica curtir para sair do feed).
+    (async () => {
+      try {
+        if (type === 'skip') {
+          await sendSwipe(current.id, 'LEFT');
+        } else if (type === 'like') {
+          await sendSwipe(current.id, 'RIGHT');
+        } else {
+          await saveLook(current.id);
+          await sendSwipe(current.id, 'RIGHT');
+        }
+      } catch {
+        showToast('Sem conexão com o servidor');
+      }
+    })();
 
     if (type === 'save') {
-      showToast('Salvo nos favoritos 🔖');
+      showToast('Salvo nos favoritos');
       await advanceQueue();
       return;
     }
 
     const targetX = type === 'like' ? width * 1.6 : -width * 1.6;
-
     Animated.timing(position, {
       toValue: { x: targetX, y: 0 },
       duration: 270,
@@ -122,7 +174,6 @@ export default function FeedScreen(): React.ReactElement {
     }).start(() => advanceQueue());
   }, [advanceQueue, position, showToast]);
 
-  // Keep ref current so PanResponder can call it without re-creating
   handleActionRef.current = handleAction;
 
   // ── PanResponder (created once) ───────────────────────────────────────────
@@ -134,7 +185,6 @@ export default function FeedScreen(): React.ReactElement {
         !isAnimating.current && (Math.abs(g.dx) > 4 || Math.abs(g.dy) > 4),
       onPanResponderMove: (_, g) => {
         if (isAnimating.current) return;
-        // Slight vertical dampening makes horizontal swipe feel more intentional
         position.setValue({ x: g.dx, y: g.dy * 0.1 });
       },
       onPanResponderRelease: (_, g) => {
@@ -145,14 +195,12 @@ export default function FeedScreen(): React.ReactElement {
         } else if (g.dx < -SWIPE_THRESHOLD) {
           handleActionRef.current?.('skip');
         } else if (g.dy < -80 && queueRef.current[0]) {
-          // Swipe up → open detail sheet
           Animated.spring(position, {
             toValue: { x: 0, y: 0 },
             useNativeDriver: false,
           }).start();
-          setDetailProduct(queueRef.current[0]);
+          setDetailLook(queueRef.current[0]);
         } else {
-          // Snap back
           Animated.spring(position, {
             toValue: { x: 0, y: 0 },
             friction: 5,
@@ -187,8 +235,27 @@ export default function FeedScreen(): React.ReactElement {
   if (loading) {
     return (
       <View className="flex-1 bg-background items-center justify-center">
-        <ActivityIndicator color="#a78bfa" size="large" />
+        <ActivityIndicator color={colors.brand.DEFAULT} size="large" />
         <Text className="text-ink-4 mt-3 text-sm">Carregando peças para você...</Text>
+      </View>
+    );
+  }
+
+  // ── Error state ───────────────────────────────────────────────────────────
+
+  if (error) {
+    return (
+      <View className="flex-1 bg-background items-center justify-center px-10">
+        <View className="w-16 h-16 rounded-full bg-danger/10 items-center justify-center mb-4">
+          <Ionicons name="cloud-offline-outline" size={30} color={colors.danger} />
+        </View>
+        <Text className="text-ink text-xl font-bold text-center">Não foi possível carregar</Text>
+        <Text className="text-ink-4 text-sm text-center mt-2 leading-6">
+          Verifique sua conexão e se você está logado. O feed precisa do servidor.
+        </Text>
+        <View className="mt-6 self-stretch">
+          <Button variant="primary" label="Tentar de novo" onPress={loadData} />
+        </View>
       </View>
     );
   }
@@ -199,16 +266,13 @@ export default function FeedScreen(): React.ReactElement {
     return (
       <View className="flex-1 bg-background items-center justify-center px-10">
         <Text className="text-4xl">✨</Text>
-        <Text className="text-white text-xl font-bold mt-3">Você viu tudo!</Text>
+        <Text className="text-ink text-xl font-bold mt-3">Você viu tudo!</Text>
         <Text className="text-ink-4 text-sm text-center mt-2 leading-6">
-          Atualizando recomendações com base no seu gosto...
+          Não há mais peças novas por agora. Volte mais tarde.
         </Text>
-        <TouchableOpacity
-          onPress={loadData}
-          className="mt-6 px-6 py-3 rounded-full border border-brand"
-        >
-          <Text className="text-brand font-semibold">Ver mais peças</Text>
-        </TouchableOpacity>
+        <View className="mt-6 self-stretch">
+          <Button variant="secondary" label="Atualizar" onPress={loadData} />
+        </View>
       </View>
     );
   }
@@ -217,28 +281,63 @@ export default function FeedScreen(): React.ReactElement {
 
   return (
     <View className="flex-1 bg-background">
-      <StatusBar barStyle="light-content" backgroundColor="#0a0a0a" />
+      <StatusBar barStyle="dark-content" backgroundColor={colors.background} />
 
      {/* Header */}
       <SafeAreaView>
         <View className="flex-row items-center justify-between px-5 pt-2 pb-2">
-          <Text className="text-white text-2xl font-bold tracking-tight">
+          <Text className="text-ink text-2xl font-bold tracking-tight">
             Lookly
           </Text>
           <TouchableOpacity
-            onPress={() => setDetailProduct(current)}
-            className="w-9 h-9 rounded-full bg-surface items-center justify-center"
+            onPress={() => setDetailLook(current)}
+            className="w-9 h-9 rounded-full bg-surface border border-surface-4 items-center justify-center"
           >
-            <Ionicons name="information-circle-outline" size={22} color="#666" />
+            <Ionicons name="information-circle-outline" size={22} color={colors.ink[4]} />
           </TouchableOpacity>
         </View>
+
+        {/* Categorias reais (GET /api/categories) — filtro opcional do feed */}
+        {categories.length > 0 && (
+          <ScrollView
+            horizontal
+            showsHorizontalScrollIndicator={false}
+            contentContainerStyle={{ paddingHorizontal: 20, gap: 8, paddingBottom: 4 }}
+          >
+            <TouchableOpacity
+              onPress={() => selectCategory(null)}
+              activeOpacity={0.8}
+              className={`px-4 py-2 rounded-full border ${
+                selectedCategory === null ? 'bg-brand border-brand' : 'bg-surface border-surface-4'
+              }`}
+            >
+              <Text className={`text-xs font-bold ${selectedCategory === null ? 'text-white' : 'text-ink-4'}`}>
+                Todas
+              </Text>
+            </TouchableOpacity>
+            {categories.map((cat) => (
+              <TouchableOpacity
+                key={cat.id}
+                onPress={() => selectCategory(cat.slug === selectedCategory ? null : cat.slug)}
+                activeOpacity={0.8}
+                className={`px-4 py-2 rounded-full border ${
+                  selectedCategory === cat.slug ? 'bg-brand border-brand' : 'bg-surface border-surface-4'
+                }`}
+              >
+                <Text className={`text-xs font-bold ${selectedCategory === cat.slug ? 'text-white' : 'text-ink-4'}`}>
+                  {cat.name}
+                </Text>
+              </TouchableOpacity>
+            ))}
+          </ScrollView>
+        )}
       </SafeAreaView>
 
       {/* Card area */}
       <View className="flex-1 items-center justify-center px-3 pb-4">
 
         {/* Peek card behind — slightly scaled down */}
-        {queue[1] && (
+        {queue[1]?.photos?.[0] && (
           <View
             style={{
               position: 'absolute',
@@ -251,7 +350,7 @@ export default function FeedScreen(): React.ReactElement {
             }}
           >
             <Image
-              source={{ uri: queue[1].image }}
+              source={{ uri: queue[1].photos[0] }}
               style={{ width: '100%', height: '100%' }}
               resizeMode="cover"
             />
@@ -265,11 +364,12 @@ export default function FeedScreen(): React.ReactElement {
             height: height * 0.70,
             borderRadius: 22,
             overflow: 'hidden',
-            backgroundColor: '#1a1a1a',
-            shadowColor: '#000',
-            shadowOpacity: 0.5,
-            shadowRadius: 20,
-            elevation: 12,
+            backgroundColor: colors.surface[4],
+            shadowColor: colors.ink.DEFAULT,
+            shadowOpacity: 0.16,
+            shadowRadius: 24,
+            shadowOffset: { width: 0, height: 8 },
+            elevation: 8,
             transform: [
               { translateX: position.x },
               { translateY: position.y },
@@ -279,36 +379,23 @@ export default function FeedScreen(): React.ReactElement {
           {...panResponder.panHandlers}
         >
           <Image
-            source={{ uri: current.image }}
+            source={{ uri: current.photos[0] }}
             style={{ position: 'absolute', width: '100%', height: '100%' }}
             resizeMode="cover"
           />
 
-          {/* CURTIU overlay */}
-          <Animated.View
-            style={{ opacity: likeOpacity }}
-            className="absolute top-11 left-4 border-2 border-success
-                       bg-success/10 rounded-xl px-4 py-2"
-          >
-            <Text className="text-white text-lg font-black tracking-wide">
-              ❤️ CURTIU
-            </Text>
+          {/* Selos de arrasto — a tela anima a opacidade, a aparência mora no componente */}
+          <Animated.View style={{ opacity: likeOpacity }} className="absolute top-11 left-4">
+            <SwipeStamp action="like" />
           </Animated.View>
 
-          {/* PASSOU overlay */}
-          <Animated.View
-            style={{ opacity: skipOpacity }}
-            className="absolute top-11 right-4 border-2 border-danger
-                       bg-danger/10 rounded-xl px-4 py-2"
-          >
-            <Text className="text-white text-lg font-black tracking-wide">
-              ✕ PASSOU
-            </Text>
+          <Animated.View style={{ opacity: skipOpacity }} className="absolute top-11 right-4">
+            <SwipeStamp action="skip" />
           </Animated.View>
 
           {/* Info gradient */}
           <LinearGradient
-            colors={['transparent', 'rgba(0,0,0,0.5)', 'rgba(0,0,0,0.95)']}
+            colors={[...PHOTO_SCRIM]}
             style={{
               position: 'absolute',
               bottom: 0,
@@ -319,63 +406,38 @@ export default function FeedScreen(): React.ReactElement {
               paddingTop: 64,
             }}
           >
-            <Text className="text-white/50 text-2xs tracking-widest uppercase mb-1">
-              {current.brand}  ·  {current.gender}
-            </Text>
             <Text className="text-white text-2xl font-bold mb-1">
               {current.name}
             </Text>
-            <Text className="text-brand text-lg font-bold mb-2.5">
-              R$ {current.price.toFixed(2)}
-            </Text>
-            <View className="flex-row flex-wrap gap-1.5">
-              {current.style_tags.map((tag) => (
-                <View
-                  key={tag}
-                  className="bg-white/10 border border-white/15 rounded-full px-2.5 py-0.5"
-                >
-                  <Text className="text-white/80 text-xs">{tag}</Text>
-                </View>
-              ))}
-              {current.colors.map((color) => (
-                <View
-                  key={color}
-                  className="bg-brand/15 border border-brand/30 rounded-full px-2.5 py-0.5"
-                >
-                  <Text className="text-brand-light text-xs">{color}</Text>
-                </View>
-              ))}
-            </View>
+            {current.price != null && (
+              // brand-light, não brand: o preço fica sobre o véu escuro da foto
+              <Text className="text-brand-light text-lg font-bold mb-2">
+                {formatarMoeda(current.price, true)}
+              </Text>
+            )}
+            {current.likes_count > 0 && (
+              <View className="flex-row items-center gap-1">
+                <Ionicons name="heart" size={13} color={colors.brand.light} />
+                <Text className="text-white/70 text-xs">
+                  {formatarNumero(current.likes_count)} curtidas
+                </Text>
+              </View>
+            )}
           </LinearGradient>
 
-          {/* Action buttons */}
+          {/* Ações do swipe */}
           <View className="absolute right-3.5 bottom-7 gap-3">
-            <TouchableOpacity
-              onPress={() => handleAction('like')}
-              className="w-12 h-12 rounded-full bg-white/12 items-center justify-center"
-            >
-              <Text className="text-2xl">❤️</Text>
-            </TouchableOpacity>
-            <TouchableOpacity
-              onPress={() => handleAction('skip')}
-              className="w-12 h-12 rounded-full bg-white/12 items-center justify-center"
-            >
-              <Text className="text-white text-xl font-bold">✕</Text>
-            </TouchableOpacity>
-            <TouchableOpacity
-              onPress={() => handleAction('save')}
-              className="w-12 h-12 rounded-full bg-brand/20 items-center justify-center"
-            >
-              <Text className="text-xl">🔖</Text>
-            </TouchableOpacity>
+            <SwipeActionButton action="like" onPress={handleAction} />
+            <SwipeActionButton action="skip" onPress={handleAction} />
+            <SwipeActionButton action="save" onPress={handleAction} />
           </View>
 
           {/* Swipe-up hint */}
           <TouchableOpacity
             className="absolute bottom-2.5 self-center"
-            onPress={() => setDetailProduct(current)}
+            onPress={() => setDetailLook(current)}
           >
-            <Text className="text-white/30 text-xs">↑  ver detalhes</Text>
+            <Text className="text-white/60 text-xs">↑  ver detalhes</Text>
           </TouchableOpacity>
         </Animated.View>
       </View>
@@ -383,15 +445,11 @@ export default function FeedScreen(): React.ReactElement {
       <Toast message={toastMsg} visible={toastVisible} />
 
       <ProductDetailSheet
-        product={detailProduct}
-        onClose={() => setDetailProduct(null)}
+        look={detailLook}
+        onClose={() => setDetailLook(null)}
         onSave={() => {
-          setDetailProduct(null);
+          setDetailLook(null);
           handleAction('save');
-        }}
-        onBuy={() => {
-          setDetailProduct(null);
-          showToast('Adicionado ao carrinho 🛍️');
         }}
       />
     </View>

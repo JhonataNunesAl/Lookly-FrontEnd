@@ -1,2 +1,7 @@
 /node_modules
 .expo/
+claude.md
+
+# Variáveis de ambiente (Supabase, URL da API). O .env.example fica versionado.
+.env
+.env.local

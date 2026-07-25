@@ -72,10 +72,53 @@ export interface CategoryStat {
 }
 
 // ─── Navigation ──────────────────────────────────────────────────────────────
+// Três listas separadas: a stack raiz e uma por bottom-tab. Antes existia só
+// `RootTabParamList` com as abas do usuário, usada para os DOIS tab navigators —
+// então as abas de empresa (Dashboard/Catalogo/Insights) não eram tipadas e o
+// TS não pôde acusar quando "Perfil" apontou para a tela errada.
 
-export type RootTabParamList = {
+import type { SellerCreate, SellerResponse } from './api';
+
+/** Stack raiz (App.tsx): auth + os dois dashboards + modais. */
+export type RootStackParamList = {
+  Login: undefined;
+  RegisterUser: undefined;
+  RegisterCompany: undefined;
+  /** Pós-cadastro, só quando o projeto exige confirmação por e-mail (sem
+   *  sessão ainda). `sellerPayload` só existe vindo do cadastro de empresa —
+   *  criar a loja precisa de sessão, que só existe depois do código confirmado. */
+  ConfirmEmail: {
+    email: string;
+    onConfirmedNavigateTo: 'MainUser' | 'MainBusiness';
+    sellerPayload?: SellerCreate;
+  };
+  MainUser: undefined;
+  MainBusiness: undefined;
+  AddProduct: undefined;
+  Carrinho: undefined;
+  Pedidos: undefined;
+  CreateStore: undefined;
+  StoreDetail: { sellerId: string };
+  BodyProfile: undefined;
+  EditStore: { loja: SellerResponse };
+  SellerDocument: undefined;
+  /** Placeholder pra qualquer funcionalidade planejada mas não implementada
+   *  ainda — ver ComingSoonScreen.tsx. `icon` é um nome válido do Ionicons. */
+  ComingSoon: { title: string; description: string; icon: string };
+};
+
+/** Abas do comprador. */
+export type UserTabParamList = {
   Feed: undefined;
   Buscar: undefined;
   Salvos: undefined;
+  Perfil: undefined;
+};
+
+/** Abas da empresa. */
+export type BusinessTabParamList = {
+  Dashboard: undefined;
+  Catalogo: undefined;
+  Insights: undefined;
   Perfil: undefined;
 };

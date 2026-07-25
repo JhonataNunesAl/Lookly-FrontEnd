@@ -1,55 +1,53 @@
-import React, { useEffect, useRef, useState } from 'react';
+import React, { useEffect, useRef } from 'react';
 import {
   Animated,
   Dimensions,
   Image,
+  Linking,
   ScrollView,
   Text,
   TouchableOpacity,
   View,
 } from 'react-native';
-import { Product } from '../types';
+import { Ionicons } from '@expo/vector-icons';
+import { LookResponse } from '../types/api';
+import { colors } from '../theme/colors';
+import { formatarMoeda, formatarNumero } from '../utils/format';
 
-const { height } = Dimensions.get('window');
-
-const SIZES = ['PP', 'P', 'M', 'G', 'GG'] as const;
-type Size = (typeof SIZES)[number];
+const { width, height } = Dimensions.get('window');
 
 interface ProductDetailSheetProps {
-  product: Product | null;
+  look: LookResponse | null;
   onClose: () => void;
   onSave: () => void;
-  onBuy: () => void;
 }
 
+/**
+ * Detalhe do look em bottom sheet. Modelo v2: fotos + nome + preço + descrição
+ * + link de compra. Não há tamanhos/variantes (comércio não existe no backend)
+ * nem tags/cores/marca (o look não carrega esses atributos).
+ */
 const ProductDetailSheet: React.FC<ProductDetailSheetProps> = ({
-  product,
+  look,
   onClose,
   onSave,
-  onBuy,
 }) => {
   const translateY = useRef(new Animated.Value(height)).current;
-  const [selectedSize, setSelectedSize] = useState<Size | null>(null);
 
   useEffect(() => {
-    if (product) {
-      setSelectedSize(null);
-      Animated.spring(translateY, {
-        toValue: 0,
-        tension: 65,
-        friction: 11,
-        useNativeDriver: true,
-      }).start();
-    } else {
-      Animated.timing(translateY, {
-        toValue: height,
-        duration: 280,
-        useNativeDriver: true,
-      }).start();
-    }
-  }, [product, translateY]);
+    Animated.spring(translateY, {
+      toValue: look ? 0 : height,
+      tension: 65,
+      friction: 11,
+      useNativeDriver: true,
+    }).start();
+  }, [look, translateY]);
 
-  if (!product) return null;
+  if (!look) return null;
+
+  const abrirLink = () => {
+    if (look.buy_link) Linking.openURL(look.buy_link).catch(() => {});
+  };
 
   return (
     <>
@@ -69,98 +67,77 @@ const ProductDetailSheet: React.FC<ProductDetailSheetProps> = ({
         {/* Close button */}
         <TouchableOpacity
           onPress={onClose}
-          className="absolute top-4 right-5 z-30"
+          accessibilityRole="button"
+          accessibilityLabel="Fechar"
+          className="absolute top-4 right-5 z-30 w-9 h-9 rounded-full bg-ink/40 items-center justify-center"
         >
-          <Text className="text-ink-4 text-sm">✕  fechar</Text>
+          <Ionicons name="close" size={18} color={colors.white} />
         </TouchableOpacity>
 
-        {/* Hero image */}
-        <Image
-          source={{ uri: product.image }}
-          className="w-full h-64"
-          resizeMode="cover"
-        />
+        {/* Fotos — carrossel horizontal (o look tem de 1 a 6) */}
+        {look.photos.length > 1 ? (
+          <ScrollView horizontal pagingEnabled showsHorizontalScrollIndicator={false}>
+            {look.photos.map((uri, i) => (
+              <Image
+                key={`${uri}-${i}`}
+                source={{ uri }}
+                style={{ width, height: 288 }}
+                resizeMode="cover"
+              />
+            ))}
+          </ScrollView>
+        ) : (
+          <Image source={{ uri: look.photos[0] }} className="w-full h-72" resizeMode="cover" />
+        )}
 
         <ScrollView
           contentContainerStyle={{ paddingBottom: 48 }}
           className="px-5 pt-4"
           showsVerticalScrollIndicator={false}
         >
-          {/* Meta */}
-          <Text className="text-ink-4 text-2xs tracking-widest uppercase mb-1">
-            {product.brand}  ·  {product.gender}
-          </Text>
-          <Text className="text-white text-2xl font-bold mb-1">{product.name}</Text>
-          <Text className="text-brand text-xl font-bold mb-3">
-            R$ {product.price.toFixed(2)}
-          </Text>
+          <Text className="text-ink text-2xl font-bold mb-1">{look.name}</Text>
 
-          <Text className="text-ink-2 text-sm leading-6 mb-4">
-            {product.description}
-          </Text>
+          {look.price != null && (
+            <Text className="text-brand text-xl font-bold mb-3">
+              {formatarMoeda(look.price, true)}
+            </Text>
+          )}
 
-          {/* Tags */}
-          <View className="flex-row flex-wrap gap-2 mb-5">
-            {product.style_tags.map((tag) => (
-              <View
-                key={tag}
-                className="bg-surface-3 border border-surface-5 rounded-full px-3 py-1"
-              >
-                <Text className="text-ink-3 text-xs">{tag}</Text>
-              </View>
-            ))}
-            {product.colors.map((color) => (
-              <View
-                key={color}
-                className="bg-brand/10 border border-brand/30 rounded-full px-3 py-1"
-              >
-                <Text className="text-brand-light text-xs">{color}</Text>
-              </View>
-            ))}
+          {/* Prova social — o look traz esses contadores */}
+          <View className="flex-row gap-4 mb-4">
+            <View className="flex-row items-center gap-1.5">
+              <Ionicons name="heart" size={15} color={colors.brand.DEFAULT} />
+              <Text className="text-ink-4 text-sm">{formatarNumero(look.likes_count)} curtidas</Text>
+            </View>
+            <View className="flex-row items-center gap-1.5">
+              <Ionicons name="bookmark" size={15} color={colors.ink[4]} />
+              <Text className="text-ink-4 text-sm">{formatarNumero(look.saves_count)} salvos</Text>
+            </View>
           </View>
 
-          {/* Size picker */}
-          <Text className="text-ink-4 text-2xs tracking-widest uppercase mb-3">
-            Tamanho
-          </Text>
-          <View className="flex-row gap-2 mb-6">
-            {SIZES.map((sz) => {
-              const active = selectedSize === sz;
-              return (
-                <TouchableOpacity
-                  key={sz}
-                  onPress={() => setSelectedSize(sz)}
-                  className={`w-12 h-12 rounded-xl border items-center justify-center
-                    ${active
-                      ? 'border-brand bg-brand/15'
-                      : 'border-surface-5 bg-transparent'
-                    }`}
-                >
-                  <Text
-                    className={`text-sm font-semibold ${active ? 'text-brand' : 'text-ink-3'}`}
-                  >
-                    {sz}
-                  </Text>
-                </TouchableOpacity>
-              );
-            })}
-          </View>
+          {look.description ? (
+            <Text className="text-ink-2 text-sm leading-6 mb-5">{look.description}</Text>
+          ) : null}
 
           {/* CTAs */}
-          <TouchableOpacity
-            onPress={onBuy}
-            className="bg-brand rounded-2xl py-4 items-center mb-3"
-          >
-            <Text className="text-white text-base font-bold">
-              Adicionar ao carrinho
-            </Text>
-          </TouchableOpacity>
+          {look.buy_link ? (
+            <TouchableOpacity
+              onPress={abrirLink}
+              accessibilityRole="button"
+              className="bg-brand rounded-2xl py-4 items-center mb-3 flex-row justify-center gap-2"
+            >
+              <Ionicons name="bag-handle-outline" size={18} color={colors.white} />
+              <Text className="text-white text-base font-bold">Comprar na loja</Text>
+            </TouchableOpacity>
+          ) : null}
 
           <TouchableOpacity
             onPress={onSave}
-            className="border border-surface-5 rounded-2xl py-3.5 items-center"
+            accessibilityRole="button"
+            className="border border-surface-5 rounded-2xl py-3.5 items-center flex-row justify-center gap-2"
           >
-            <Text className="text-ink-3 text-base">🔖  Salvar peça</Text>
+            <Ionicons name="bookmark-outline" size={17} color={colors.ink[3]} />
+            <Text className="text-ink-3 text-base">Salvar peça</Text>
           </TouchableOpacity>
         </ScrollView>
       </Animated.View>

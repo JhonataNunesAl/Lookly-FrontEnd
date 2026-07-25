@@ -38,11 +38,11 @@ const Toast: React.FC<ToastProps> = ({ message, visible }) => {
   return (
     <Animated.View
       style={{ opacity, transform: [{ translateY }] }}
-      className="absolute bottom-24 self-center z-50 bg-surface rounded-full
-                 px-5 py-2.5 border border-brand/20"
+      className="absolute bottom-24 self-center z-50 bg-ink rounded-full
+                 px-5 py-2.5"
       pointerEvents="none"
     >
-      <Text className="text-brand-light text-sm font-medium">{message}</Text>
+      <Text className="text-surface text-sm font-medium">{message}</Text>
     </Animated.View>
   );
 };
