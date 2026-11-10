@@ -5,3 +5,16 @@ claude.md
 # Variáveis de ambiente (Supabase, URL da API). O .env.example fica versionado.
 .env
 .env.local
+
+# Ferramentas de desenvolvimento e arquivos gerados — não são código do app.
+# (skills instaladas, mockups e capturas de tela de revisão de design)
+.claude/
+.agents/
+skills-lock.json
+.impeccable/mocks/
+.impeccable/questions/
+.impeccable/review/
+
+# Sessões do agent-device e logs locais
+.agent-device/
+*.log
