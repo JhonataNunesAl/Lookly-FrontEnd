@@ -23,7 +23,8 @@ comprador e pode "virar loja" depois, sem criar um cadastro novo.
 **Nomenclatura, de propósito confusa**: o repositório do backend chama-se
 `Lucker`, o produto chama-se `Lookly`, e o pacote do app React Native chama-se
 `fitfeed`. Três nomes pra mesma coisa — histórico do projeto, não vale a pena
-unificar (o nome aparece em bundle IDs e tokens salvos).
+unificar (o nome aparece em bundle IDs e tokens salvos). O nome que a pessoa
+vê no celular (`name` do `app.json`) é **Lookly**; até 2026-11-10 era "FitFeed".
 
 ---
 
@@ -148,6 +149,15 @@ Resumindo o ponto da seção 3 de um jeito mais concreto:
    checado contra a Receita Federal (via BrasilAPI, gratuita) pra confirmar
    que a empresa existe e está ativa, não só que o número é matematicamente
    válido.
+6. **Token verificado com a lista certa de algoritmos** — o Lucker valida o
+   JWT com a biblioteca PyJWT e escolhe os algoritmos aceitos pelo tipo da
+   chave (ES256/RS256 para as chaves públicas do Supabase, HS256 só com o
+   segredo legado), nunca pelo que o cabeçalho do token diz. Isso fecha o
+   ataque clássico de "algoritmo confundido". As dependências do backend e do
+   app foram atualizadas em 2026-11-10 (`pip-audit` limpo; o `npm audit`
+   restante é só ferramenta de build do Expo, que sai com o SDK 57).
+7. **Log de erros sem dado pessoal** — ver "Conta, privacidade e logs" na
+   seção 7.
 
 ---
 
@@ -194,6 +204,25 @@ curtidas, salvos, estoque, o que precisa de atenção e as peças mais procurada
 contagem de visualizações no backend, e um número inventado numa tela de dono
 de loja é pior que a ausência dele. "Pedidos recebidos" ainda é "Em breve".
 
+### Conta, privacidade e logs
+**Excluir a conta** (exigência da Play Store e da LGPD): no perfil, o link
+"Excluir minha conta" (comprador e loja) abre uma tela que pede para digitar
+`EXCLUIR`, repetir a senha e confirmar num aviso final. O Lucker apaga, nesta
+ordem: as visualizações, a loja (com peças e documento fiscal), o perfil (e o
+que depende dele), as fotos no Storage e, por último, o login no Supabase Auth.
+Se algum passo falhar no meio, repetir termina o serviço. **Conta com pedidos
+registrados não é excluída pelo app** (pedido é registro fiscal): a resposta é
+"fale com o suporte". Ainda não foi testada contra o banco real.
+
+**Registro de erros**: exceções do app, promises rejeitadas, telas que quebram
+ao desenhar (o app mostra "Algo deu errado" em vez de fechar) e falhas de
+servidor/rede são enviados em lote ao Lucker (`POST /api/logs/client`) e
+gravados no log do servidor. Não vai texto digitado, senha, token, corpo de
+requisição nem endereço completo — só o tipo do erro, a tela, a rota sem ids,
+a versão do app e (quando há login) o id da conta, que o servidor lê do
+token, não do que o app diz. O servidor ainda limpa e-mails, CPF/CNPJ e
+chaves antes de gravar. Em desenvolvimento só escreve no console.
+
 ---
 
 ## 8. O que é real, o que é rascunho, e o que falta
@@ -204,7 +233,8 @@ código, feed com curtir/salvar/filtro de categoria, busca de looks e lojas com
 filtros de preço, tamanho, estoque e ordem, perfil (dados + medidas corporais +
 consentimento de IA + foto), virar vendedor com verificação de CNPJ, editar
 dados e logo da loja, publicar/editar/remover peças com fotos, ajustar estoque,
-painel e insights da loja sobre dados reais, e o **carrinho** (adicionar,
+painel e insights da loja sobre dados reais, **excluir a conta**, registro de
+erros do app, e o **carrinho** (adicionar,
 aumentar, diminuir, remover) com checagem de estoque — otimista, sem reserva.
 
 **Existe como rascunho — estrutura pronta, sem funcionar de verdade:**

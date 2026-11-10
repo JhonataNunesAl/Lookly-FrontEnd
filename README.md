@@ -1,5 +1,5 @@
-# 👗 FitFeed — TikTok de roupas com algoritmo de gosto
-### React Native + Expo SDK 50 + TypeScript
+# 👗 Lookly — TikTok de roupas com algoritmo de gosto
+### React Native + Expo SDK 55 + TypeScript
 
 ---
 
@@ -12,7 +12,6 @@
 3. Adicione os pacotes via painel:
    - `@react-native-async-storage/async-storage`
    - `@react-navigation/native` + `@react-navigation/bottom-tabs`
-   - `expo-linear-gradient`
    - `react-native-screens`
    - `react-native-safe-area-context`
    - `react-native-gesture-handler`
@@ -151,9 +150,8 @@ Cada interação pontua os atributos do produto:
 
 | Tecnologia | Uso |
 |---|---|
-| React Native 0.73 | UI nativa |
-| Expo SDK 50 | Toolchain e build |
-| TypeScript 5.3 | Tipagem estrita |
+| React Native 0.83 | UI nativa |
+| Expo SDK 55 | Toolchain e build |
+| TypeScript 5.4 | Tipagem estrita |
 | AsyncStorage | Persistência local do perfil |
-| React Navigation 6 | Navegação por abas |
-| expo-linear-gradient | Gradientes nos cards |
+| React Navigation 7 | Navegação (abas e pilha) |
