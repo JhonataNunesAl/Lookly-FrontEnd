@@ -1,12 +1,16 @@
 import React from 'react';
-import { Text, TouchableOpacity, View } from 'react-native';
+import {
+  TouchableOpacity,
+  View,
+} from 'react-native';
+import Text from './Text';
 import { Ionicons } from '@expo/vector-icons';
 import { colors } from '../theme/colors';
 
 /**
  * Blocos compartilhados pelas telas de painel (perfil do usuário, perfil da
- * marca e insights). Nasceram duplicados na ProfileScreen; foram extraídos
- * quando a área de empresa passou a precisar dos mesmos pedaços.
+ * marca e insights), na linguagem de catálogo: números em serifa, títulos de
+ * seção com filete vermelho, pictogramas em quadrados de tinta.
  */
 
 // ─── Número-chave ─────────────────────────────────────────────────────────────
@@ -14,32 +18,71 @@ import { colors } from '../theme/colors';
 interface StatTileProps {
   value: string | number;
   label: string;
-  /** `ink` para uso dentro do cartão escuro; `surface` para o fundo creme. */
+  /** `ink` para uso dentro do cartão escuro; `surface` para o fundo claro. */
   tone?: 'ink' | 'surface';
 }
 
 /**
- * Um número que se lê sozinho — não um gráfico de uma barra só.
- * Sem `tabular-nums` de propósito: dígitos de largura fixa deixam número grande
- * com espaçamento frouxo.
+ * Um número que se lê sozinho, em serifa — a hierarquia vem do contraste de
+ * tamanho entre o número e o rótulo, não de cor extra.
  */
 export function StatTile({ value, label, tone = 'ink' }: StatTileProps): React.ReactElement {
   const isInk = tone === 'ink';
   return (
     <View
-      className={`flex-1 rounded-2xl px-3 py-3 ${
-        isInk ? 'bg-ink-2' : 'bg-surface border border-surface-4'
-      }`}
+      className={`flex-1 rounded-card px-3 py-3 ${isInk ? 'bg-ink-2' : 'bg-surface'}`}
     >
-      <Text className={`text-xl font-bold ${isInk ? 'text-background' : 'text-ink'}`}>
+      <Text className={`text-3xl font-display-bold ${isInk ? 'text-signal' : 'text-ink'}`}>
         {value}
       </Text>
-      <Text
-        className={`text-2xs uppercase tracking-widest mt-0.5 ${
-          isInk ? 'text-ink-6' : 'text-ink-5'
-        }`}
-      >
+      <Text className={`text-xs font-sans-medium mt-0.5 ${isInk ? 'text-white' : 'text-ink-4'}`}>
         {label}
+      </Text>
+    </View>
+  );
+}
+
+// ─── Placar ───────────────────────────────────────────────────────────────────
+
+interface StatBoardProps {
+  items: { label: string; value: string | number }[];
+  /** `ink` dentro de uma faixa preta; `surface` sobre painel branco. */
+  tone?: 'ink' | 'surface';
+}
+
+/**
+ * Ficha de dados: um número por linha, rótulo à esquerda, valor em serifa à
+ * direita, ligados por uma linha pontilhada como numa tabela de preços de
+ * catálogo. Substitui a fileira de três cartões-métrica.
+ */
+export function StatBoard({ items, tone = 'ink' }: StatBoardProps): React.ReactElement {
+  const isInk = tone === 'ink';
+  return (
+    <View>
+      {items.map((it) => (
+        <View key={it.label} className="flex-row items-end min-h-14 py-2">
+          <Text className={`text-base font-sans-semibold ${isInk ? 'text-white' : 'text-ink-3'}`}>{it.label}</Text>
+          {/* Linha pontilhada de ficha: liga o rótulo ao valor */}
+          <View className={`flex-1 mx-2 mb-2 border-b border-dotted ${isInk ? 'border-white/60' : 'border-ink-5'}`} />
+          <Text
+            className={`text-3xl font-display-bold ${isInk ? 'text-signal' : 'text-ink'}`}
+            style={{ fontVariant: ['tabular-nums'] }}
+          >
+            {it.value}
+          </Text>
+        </View>
+      ))}
+    </View>
+  );
+}
+
+/** Faixa de tinta que avisa que os números da tela ainda são de exemplo. */
+export function AmostraPlate(): React.ReactElement {
+  return (
+    <View className="bg-ink flex-row items-center gap-2 px-5 min-h-12">
+      <Ionicons name="information-circle" size={22} color={colors.signal.DEFAULT} />
+      <Text className="flex-1 text-white text-sm font-sans-semibold">
+        Dados de exemplo — a loja ainda não tem vendas reais.
       </Text>
     </View>
   );
@@ -56,27 +99,23 @@ interface MeterBarProps {
 }
 
 /**
- * Trilho recessivo + preenchimento fino na cor da marca.
- *
- * Uma cor só para todas as barras, de propósito: as categorias aqui são
- * nominais (peças, categorias de roupa), então pintar cada uma de um tom
- * diferente só repetiria o que o comprimento já mostra.
- * O número veste tinta, nunca a cor da barra.
+ * Trilho de papel + preenchimento vermelho de selo. Uma cor só para todas as barras: as
+ * categorias são nominais, então o comprimento já diz tudo. O número veste tinta.
  */
 export function MeterBar({ label, pct, valueLabel }: MeterBarProps): React.ReactElement {
   return (
     <View className="mb-3.5">
       <View className="flex-row items-center justify-between mb-1.5">
-        <Text className="text-ink-3 text-sm capitalize font-medium flex-1" numberOfLines={1}>
+        <Text className="text-ink text-sm capitalize font-sans-semibold flex-1" numberOfLines={1}>
           {label}
         </Text>
-        <Text className="text-ink-4 text-xs ml-3" style={{ fontVariant: ['tabular-nums'] }}>
+        <Text className="text-ink-4 text-xs font-sans-medium ml-3" style={{ fontVariant: ['tabular-nums'] }}>
           {valueLabel ?? `${pct}%`}
         </Text>
       </View>
-      <View className="h-1.5 rounded-full bg-surface-4 overflow-hidden">
+      <View className="h-2 rounded-sm bg-surface-4 overflow-hidden">
         {/* Mínimo de 2% para a barra não sumir quando o valor é quase zero */}
-        <View className="h-full rounded-full bg-brand" style={{ width: `${Math.max(pct, 2)}%` }} />
+        <View className="h-full rounded-sm bg-seal" style={{ width: `${Math.max(pct, 2)}%` }} />
       </View>
     </View>
   );
@@ -84,6 +123,10 @@ export function MeterBar({ label, pct, valueLabel }: MeterBarProps): React.React
 
 // ─── Títulos ──────────────────────────────────────────────────────────────────
 
+/**
+ * Título de seção de catálogo: nome em serifa, um filete vermelho que se estica
+ * até o canto e, se houver, a ação sublinhada à direita.
+ */
 export function SectionHeader({
   title, actionLabel, onAction,
 }: {
@@ -92,11 +135,16 @@ export function SectionHeader({
   onAction?: () => void;
 }): React.ReactElement {
   return (
-    <View className="flex-row items-center justify-between px-5 mb-3">
-      <Text className="text-ink text-lg font-bold">{title}</Text>
+    <View className="flex-row items-center px-4 min-h-12 mb-2 gap-3">
+      <Text className="text-ink text-xl font-display-bold">{title}</Text>
+      <View className="flex-1 h-[2px] bg-seal" />
       {actionLabel && onAction ? (
-        <TouchableOpacity onPress={onAction} accessibilityRole="button">
-          <Text className="text-brand text-xs font-bold">{actionLabel}</Text>
+        <TouchableOpacity
+          onPress={onAction}
+          accessibilityRole="button"
+          className="min-h-12 justify-center"
+        >
+          <Text className="text-ink text-sm font-sans-bold underline">{actionLabel}</Text>
         </TouchableOpacity>
       ) : null}
     </View>
@@ -105,7 +153,7 @@ export function SectionHeader({
 
 export function SectionTitle({ title }: { title: string }): React.ReactElement {
   return (
-    <Text className="text-ink-5 text-[10px] uppercase tracking-[2px] font-bold mt-3 mb-1 ml-1">
+    <Text className="text-ink-3 text-lg font-display-italic mt-3 mb-1 ml-1">
       {title}
     </Text>
   );
@@ -121,6 +169,7 @@ interface MenuButtonProps {
   destructive?: boolean;
 }
 
+/** Linha de menu: pictograma branco em quadrado preto (ou vermelho) + rótulo. */
 export function MenuButton({
   icon, label, onPress, badge, destructive = false,
 }: MenuButtonProps): React.ReactElement {
@@ -128,26 +177,26 @@ export function MenuButton({
     <TouchableOpacity
       onPress={onPress}
       accessibilityRole="button"
-      className="flex-row items-center justify-between bg-surface border border-surface-4 px-5 py-4 rounded-3xl"
+      className="flex-row items-center justify-between bg-surface px-4 min-h-16 rounded-card border border-surface-5"
     >
       <View className="flex-row items-center gap-4">
         <View
-          className={`w-10 h-10 rounded-2xl items-center justify-center ${
-            destructive ? 'bg-danger/10' : 'bg-brand/10'
+          className={`w-10 h-10 rounded-lg items-center justify-center ${
+            destructive ? 'bg-danger' : 'bg-ink'
           }`}
         >
-          <Ionicons name={icon} size={20} color={destructive ? colors.danger : colors.brand.DEFAULT} />
+          <Ionicons name={icon} size={22} color={colors.white} />
         </View>
-        <Text className={`${destructive ? 'text-danger' : 'text-ink'} font-medium`}>{label}</Text>
+        <Text className={`${destructive ? 'text-danger' : 'text-ink'} text-base font-sans-semibold`}>{label}</Text>
       </View>
 
       <View className="flex-row items-center gap-2">
         {badge ? (
-          <View className="bg-brand rounded-full px-2 py-0.5">
-            <Text className="text-white text-[10px] font-bold">{badge}</Text>
+          <View className="bg-seal rounded-md px-2 py-0.5 min-w-6 items-center">
+            <Text className="text-white text-xs font-sans-bold">{badge}</Text>
           </View>
         ) : null}
-        <Ionicons name="chevron-forward" size={16} color={colors.ink[6]} />
+        <Ionicons name="chevron-forward" size={18} color={colors.ink[5]} />
       </View>
     </TouchableOpacity>
   );

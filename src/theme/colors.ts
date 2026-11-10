@@ -1,67 +1,54 @@
 /**
- * Paleta "Editorial" — fonte única das cores usadas em props JS.
+ * Paleta "Catálogo vintage" — fonte única das cores usadas em props JS.
  *
  * NativeWind cobre tudo que aceita `className`. Props como `color` do Ionicons,
- * `placeholderTextColor`, `colors` do LinearGradient e `shadowColor` não aceitam,
- * e antes carregavam hex solto espalhado por 14 telas. Importe daqui.
+ * `placeholderTextColor`, `backgroundColor` do StatusBar e `shadowColor` não
+ * aceitam. Importe daqui.
  *
  * Espelha tailwind.config.js — ao mexer em um, mexa no outro.
+ *
+ * Regra do vermelho (`seal`): selo de preço, molduras e estado ativo; botões e
+ * seleção são de tinta. Mostarda (`signal`) só sobre tinta escura.
  */
 
 export const colors = {
-  background: '#F7F5F2',
+  /** Papel da página. */
+  background: '#F3E9D2',
 
   surface: {
-    DEFAULT: '#FFFFFF',
-    2: '#FBFAF8',
-    3: '#F2EEE9',
-    4: '#E8E2DA',
-    5: '#DCD4CA',
+    DEFAULT: '#FBF5E6',
+    2: '#F7EDD6',
+    3: '#EADDBB',
+    4: '#DACB9F',
+    5: '#C2B185',
   },
 
-  brand: {
-    DEFAULT: '#B54A2E',
-    /** Só sobre foto/fundo escuro — sem contraste sobre background. */
-    light: '#E8B4A0',
-    dark: '#8F3A24',
+  seal: {
+    DEFAULT: '#B3261E',
+    dark: '#8C1C15',
+    soft: '#F1D5CC',
+  },
+
+  signal: {
+    DEFAULT: '#E3A72F',
+    soft: '#F6E2AE',
   },
 
   ink: {
-    DEFAULT: '#14110F',
-    2: '#3D3630',
-    3: '#574F49',
-    4: '#6B635C',
-    5: '#7E756E',
+    DEFAULT: '#2B1D12',
+    2: '#3C2A1B',
+    3: '#503C29',
+    4: '#614D38',
+    5: '#705B45',
     /** Decorativo (bordas, ícone inativo) — não use para texto. */
-    6: '#A9A099',
+    6: '#A8977C',
   },
 
-  success: '#2F6B4F',
-  danger: '#A3301F',
-  warning: '#9A6B15',
-  info: '#3E6B8A',
+  success: '#2F6B3C',
+  danger: '#B3261E',
+  warning: '#8A5A00',
+  info: '#1F4E79',
 
-  white: '#FFFFFF',
+  /** Papel claro para texto/ícone sobre tinta ou selo. */
+  white: '#FBF5E6',
 } as const;
-
-/** Gradiente do acento — botões primários e realces de marca. */
-export const BRAND_GRADIENT = [colors.brand.light, colors.brand.DEFAULT] as const;
-
-/** Gradiente para botão sólido primário (mais fechado, texto branco por cima). */
-export const BRAND_GRADIENT_SOLID = ['#C86B4A', colors.brand.dark] as const;
-
-/**
- * Gradiente de tinta — cards "herói" (ex: saldo do painel da empresa).
- * Escuro sobre creme: destaca sem competir com o terracota dos botões.
- */
-export const INK_GRADIENT = [colors.ink[2], colors.ink.DEFAULT] as const;
-
-/** Véu sobre foto: transparente → tinta, para texto branco legível no card. */
-export const PHOTO_SCRIM = [
-  'transparent',
-  'rgba(20,17,15,0.45)',
-  'rgba(20,17,15,0.92)',
-] as const;
-
-/** Véu de baixo da lista (fade para o fundo da página). */
-export const PAGE_FADE = ['transparent', 'rgba(247,245,242,0.9)', colors.background] as const;

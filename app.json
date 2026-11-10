@@ -4,23 +4,38 @@
     "slug": "fitfeed",
     "version": "1.0.0",
     "orientation": "portrait",
-    "userInterfaceStyle": "dark",
-    "splash": {
-      "backgroundColor": "#0a0a0a"
-    },
-    "assetBundlePatterns": ["**/*"],
+    "userInterfaceStyle": "light",
+    "assetBundlePatterns": [
+      "**/*"
+    ],
     "ios": {
       "supportsTablet": false,
-      "bundleIdentifier": "com.fitfeed.app"
+      "bundleIdentifier": "com.lookly.lookerStyle"
     },
     "android": {
       "adaptiveIcon": {
-        "backgroundColor": "#0a0a0a"
+        "foregroundImage": "./assets/adaptive-icon.png",
+        "backgroundColor": "#F3E9D2"
       },
-      "package": "com.fitfeed.app"
+      "package": "com.lookly.lookerStyle"
     },
-    "web": {
-      "favicon": "./assets/favicon.png"
-    }
+    "plugins": [
+      "expo-font",
+      [
+        "expo-splash-screen",
+        {
+          "image": "./assets/splash-icon.png",
+          "backgroundColor": "#F3E9D2",
+          "imageWidth": 200
+        }
+      ]
+    ],
+    "extra": {
+      "eas": {
+        "projectId": "613dd08d-17b7-4d4a-8ad2-6c754fb75cf7"
+      }
+    },
+    "owner": "nickmello_js",
+    "icon": "./assets/icon.png"
   }
 }

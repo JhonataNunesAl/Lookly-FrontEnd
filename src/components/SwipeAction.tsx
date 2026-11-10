@@ -1,45 +1,47 @@
 import React from 'react';
-import { Text, TouchableOpacity, View } from 'react-native';
+import {
+  TouchableOpacity,
+  View,
+} from 'react-native';
+import Text from './Text';
 import { Ionicons } from '@expo/vector-icons';
 import { InteractionType } from '../types';
 import { colors } from '../theme/colors';
 
 /**
- * As três ações do swipe (curtir / passar / salvar), caracterizadas com a
- * paleta do app em vez de emoji — emoji ignora o tema e muda de desenho a cada
- * aparelho.
+ * As três ações do feed (passar / curtir / salvar) como campos de um cupom de
+ * pedido: duas fichas de papel com filete de tinta (passar, salvar) e uma ficha
+ * vermelha de selo (curtir, a ação principal, no centro). Cada uma leva o
+ * pictograma e o rótulo — a pessoa lê o que a ação faz em vez de decorar um
+ * ícone solto. 56dp de altura (alvo do Material: 48dp).
  *
- * Sobre as cores: `danger` (#A3301F) e `brand` (#B54A2E) são dois terracotas
- * quase iguais, então usar danger no "passar" o deixaria indistinguível do
- * "salvar". Por isso o descarte é `ink` (recusa neutra) e não vermelho.
+ * O selo que surge ao arrastar o card é um carimbo de borracha inclinado
+ * (CURTIR / PASSAR), a assinatura de interação do mundo de catálogo.
  */
 
 interface ActionConfig {
   icon: keyof typeof Ionicons.glyphMap;
-  /** Lido por leitores de tela e usado no rótulo do botão. */
+  /** Rótulo da ficha e do leitor de tela. */
   label: string;
-  /** Texto do selo que aparece sobre a foto ao arrastar o card. */
+  /** Texto do carimbo que aparece sobre a foto ao arrastar o card. */
   stamp: string;
-  tint: string;
+  /** Ficha cheia (ação principal) ou só filete. */
+  primary: boolean;
 }
 
 export const SWIPE_ACTIONS: Record<InteractionType, ActionConfig> = {
-  like: { icon: 'heart', label: 'Curtir', stamp: 'CURTIU', tint: colors.success },
-  skip: { icon: 'close', label: 'Passar', stamp: 'PASSOU', tint: colors.ink.DEFAULT },
-  save: { icon: 'bookmark', label: 'Salvar', stamp: 'SALVO', tint: colors.brand.DEFAULT },
+  like: { icon: 'heart', label: 'Curtir', stamp: 'CURTIR', primary: true },
+  skip: { icon: 'close', label: 'Passar', stamp: 'PASSAR', primary: false },
+  save: { icon: 'bookmark', label: 'Salvar', stamp: 'SALVAR', primary: false },
 };
 
-// ─── Botão redondo sobre o card ───────────────────────────────────────────────
+// ─── Ficha de ação ────────────────────────────────────────────────────────────
 
 interface SwipeActionButtonProps {
   action: InteractionType;
   onPress: (action: InteractionType) => void;
 }
 
-/**
- * Disco claro com o ícone na cor da ação. O fundo é sólido de propósito: o
- * botão fica sobre a foto da peça, e um fundo translúcido some em roupa clara.
- */
 export function SwipeActionButton({
   action,
   onPress,
@@ -52,40 +54,41 @@ export function SwipeActionButton({
       activeOpacity={0.85}
       accessibilityRole="button"
       accessibilityLabel={cfg.label}
-      className="w-14 h-14 rounded-full bg-surface items-center justify-center"
-      style={{
-        shadowColor: colors.ink.DEFAULT,
-        shadowOpacity: 0.3,
-        shadowRadius: 8,
-        shadowOffset: { width: 0, height: 3 },
-        elevation: 6,
-      }}
+      className={`flex-1 h-14 rounded-card border-2 flex-row items-center justify-center gap-2 px-2 ${
+        cfg.primary ? 'bg-seal border-seal' : 'bg-surface border-ink'
+      }`}
     >
-      <Ionicons name={cfg.icon} size={24} color={cfg.tint} />
+      <Ionicons name={cfg.icon} size={22} color={cfg.primary ? colors.white : colors.ink.DEFAULT} />
+      <Text className={`text-base font-sans-bold ${cfg.primary ? 'text-white' : 'text-ink'}`}>{cfg.label}</Text>
     </TouchableOpacity>
   );
 }
 
-// ─── Selo de arrasto (CURTIU / PASSOU) ────────────────────────────────────────
+// ─── Carimbo de arrasto (CURTIR / PASSAR) ─────────────────────────────────────
 
 interface SwipeStampProps {
   action: InteractionType;
 }
 
 /**
- * Selo sólido que surge conforme o card é arrastado. Quem anima a opacidade é
- * a tela — aqui só mora a aparência.
+ * Carimbo de borracha com moldura dupla, inclinado: vermelho para curtir, tinta
+ * para passar. Quem anima a opacidade é a tela — aqui só mora a aparência.
  */
 export function SwipeStamp({ action }: SwipeStampProps): React.ReactElement {
   const cfg = SWIPE_ACTIONS[action];
+  const like = action === 'like';
+  const cor = like ? colors.seal.DEFAULT : colors.ink.DEFAULT;
 
   return (
     <View
-      className="flex-row items-center gap-2 rounded-xl px-4 py-2"
-      style={{ backgroundColor: cfg.tint }}
+      className="bg-surface/90 rounded-card px-3 py-1"
+      style={{ borderWidth: 4, borderColor: cor, transform: [{ rotate: like ? '-8deg' : '8deg' }] }}
     >
-      <Ionicons name={cfg.icon} size={18} color={colors.white} />
-      <Text className="text-white text-lg font-black tracking-wide">{cfg.stamp}</Text>
+      <View className="rounded-sm px-2" style={{ borderWidth: 1.5, borderColor: cor }}>
+        <Text className="text-3xl font-display-black" style={{ color: cor }}>
+          {cfg.stamp}
+        </Text>
+      </View>
     </View>
   );
 }

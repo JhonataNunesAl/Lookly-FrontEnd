@@ -1,5 +1,9 @@
 import React from 'react';
-import { Text, TextInput, View } from 'react-native';
+import {
+  TextInput,
+  View,
+} from 'react-native';
+import Text from './Text';
 import { colors } from '../theme/colors';
 
 interface BirthDateInputProps {
@@ -19,13 +23,13 @@ export default function BirthDateInput({
 }: BirthDateInputProps): React.ReactElement {
   return (
     <View>
-      <Text className="text-ink-5 text-[10px] font-bold uppercase mb-2 ml-1 tracking-widest">
+      <Text className="text-ink text-sm font-sans-bold mb-2 ml-1">
         Data de nascimento
       </Text>
       <View className="flex-row gap-x-3">
-        <View className="bg-surface border border-surface-4 rounded-2xl px-4 h-14 justify-center flex-1">
+        <View className="bg-surface border border-b-2 border-surface-5 border-b-ink px-4 h-14 justify-center flex-1">
           <TextInput
-            className="text-ink font-medium text-center"
+            className="text-ink font-sans-medium text-center"
             placeholder="DD"
             placeholderTextColor={colors.ink[6]}
             keyboardType="number-pad"
@@ -34,9 +38,9 @@ export default function BirthDateInput({
             onChangeText={onChangeDay}
           />
         </View>
-        <View className="bg-surface border border-surface-4 rounded-2xl px-4 h-14 justify-center flex-1">
+        <View className="bg-surface border border-b-2 border-surface-5 border-b-ink px-4 h-14 justify-center flex-1">
           <TextInput
-            className="text-ink font-medium text-center"
+            className="text-ink font-sans-medium text-center"
             placeholder="MM"
             placeholderTextColor={colors.ink[6]}
             keyboardType="number-pad"
@@ -45,9 +49,9 @@ export default function BirthDateInput({
             onChangeText={onChangeMonth}
           />
         </View>
-        <View className="bg-surface border border-surface-4 rounded-2xl px-4 h-14 justify-center flex-[1.4]">
+        <View className="bg-surface border border-b-2 border-surface-5 border-b-ink px-4 h-14 justify-center flex-[1.4]">
           <TextInput
-            className="text-ink font-medium text-center"
+            className="text-ink font-sans-medium text-center"
             placeholder="AAAA"
             placeholderTextColor={colors.ink[6]}
             keyboardType="number-pad"
