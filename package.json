@@ -11,6 +11,9 @@
     "ts:check": "tsc --noEmit"
   },
   "dependencies": {
+    "@expo-google-fonts/courier-prime": "^0.4.1",
+    "@expo-google-fonts/dm-serif-display": "^0.4.2",
+    "@expo-google-fonts/hind": "^0.4.1",
     "@expo/vector-icons": "^15.0.2",
     "@react-native-async-storage/async-storage": "2.2.0",
     "@react-navigation/bottom-tabs": "7.15.11",
@@ -20,7 +23,10 @@
     "axios": "^1.16.0",
     "babel-preset-expo": "^55.0.18",
     "expo": "^55.0.18",
+    "expo-font": "~55.0.8",
+    "expo-image-picker": "~55.0.24",
     "expo-linear-gradient": "55.0.13",
+    "expo-splash-screen": "~55.0.25",
     "expo-status-bar": "55.0.5",
     "nativewind": "^4.2.3",
     "react": "19.2.0",
