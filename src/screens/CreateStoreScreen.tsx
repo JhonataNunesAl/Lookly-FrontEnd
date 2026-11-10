@@ -3,14 +3,13 @@ import {
   Alert,
   KeyboardAvoidingView,
   Platform,
-  SafeAreaView,
   ScrollView,
   StatusBar,
-  Text,
   TextInput,
   TouchableOpacity,
   View,
 } from 'react-native';
+import Text from '../components/Text';
 import { Ionicons } from '@expo/vector-icons';
 import { useNavigation } from '@react-navigation/native';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
@@ -19,6 +18,7 @@ import { slugify } from '../utils/format';
 import { createStore, verifySellerDocument, submitSellerDocument } from '../lib/sellers';
 import { DocumentVerifyResponse } from '../types/api';
 import Button from '../components/Button';
+import ScreenHeader from '../components/ScreenHeader';
 
 /**
  * Upgrade de usuário comum para vendedor — diferente de `RegisterCompanyScreen`,
@@ -88,10 +88,20 @@ export default function CreateStoreScreen(): React.ReactElement {
         store_slug: slugify(storeName),
         description: bio.trim() || undefined,
       });
-      await submitSellerDocument({
-        document_number: documentNumber.trim(),
-        document_type: documentType,
-      });
+      // A loja já existe a partir daqui. Se só o documento falhar, tentar de
+      // novo "Criar loja" bateria em "já é vendedor" e a pessoa ficaria presa:
+      // segue para o painel e o documento se reenvia por lá.
+      try {
+        await submitSellerDocument({
+          document_number: documentNumber.trim(),
+          document_type: documentType,
+        });
+      } catch {
+        Alert.alert(
+          'Loja criada, documento não',
+          'Não foi possível gravar o documento agora. Envie de novo em Perfil > Documento fiscal.',
+        );
+      }
       navigation.replace('MainBusiness');
     } catch (error: any) {
       const detail = error?.response?.data?.detail;
@@ -104,30 +114,26 @@ export default function CreateStoreScreen(): React.ReactElement {
 
   return (
     <View className="flex-1 bg-background">
-      <StatusBar barStyle="dark-content" />
+      <StatusBar barStyle="dark-content" backgroundColor={colors.background} />
+      <ScreenHeader title="Criar minha loja" onBack={() => navigation.goBack()} />
+
       <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : 'height'} className="flex-1">
-        <SafeAreaView className="flex-1">
+        <View className="flex-1">
           <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={{ paddingHorizontal: 24, paddingBottom: 40 }}>
 
-            <View className="mt-8 mb-8">
-              <TouchableOpacity onPress={() => navigation.goBack()} className="mb-4">
-                <Ionicons name="arrow-back" size={24} color={colors.ink.DEFAULT} />
-              </TouchableOpacity>
-              <Text className="text-ink text-3xl font-bold tracking-tight">Criar minha loja</Text>
-              <Text className="text-ink-4 mt-2">
-                Sua conta continua a mesma — só ganha acesso ao painel de vendedor.
-              </Text>
-            </View>
+            <Text className="text-ink text-lg font-sans-semibold mt-6 mb-6">
+              Sua conta continua a mesma — só ganha acesso ao painel de vendedor.
+            </Text>
 
             <View className="gap-y-5">
               <View>
-                <Text className="text-ink-5 text-xs font-bold uppercase mb-2 ml-1 tracking-widest">Nome da marca</Text>
-                <View className="bg-surface border border-surface-4 rounded-2xl px-4 flex-row items-center h-14">
+                <Text className="text-ink text-sm font-sans-bold mb-2">Nome da marca</Text>
+                <View className="bg-surface border border-b-2 border-surface-5 border-b-ink px-4 flex-row items-center h-14">
                   <Ionicons name="business-outline" size={20} color={colors.ink[5]} />
                   <TextInput
-                    className="flex-1 ml-3 text-ink font-medium"
+                    className="flex-1 ml-3 text-ink font-sans-medium"
                     placeholder="Ex: Lookly Studio"
-                    placeholderTextColor={colors.ink[6]}
+                    placeholderTextColor={colors.ink[5]}
                     value={storeName}
                     onChangeText={setStoreName}
                   />
@@ -135,12 +141,12 @@ export default function CreateStoreScreen(): React.ReactElement {
               </View>
 
               <View>
-                <Text className="text-ink-5 text-xs font-bold uppercase mb-2 ml-1 tracking-widest">Bio da marca</Text>
-                <View className="bg-surface border border-surface-4 rounded-3xl px-4 py-3 h-24">
+                <Text className="text-ink text-sm font-sans-bold mb-2">Bio da marca</Text>
+                <View className="bg-surface border border-b-2 border-surface-5 border-b-ink px-4 py-3 h-24">
                   <TextInput
                     className="text-ink text-sm"
                     placeholder="Descreva o estilo da sua marca..."
-                    placeholderTextColor={colors.ink[6]}
+                    placeholderTextColor={colors.ink[5]}
                     multiline
                     textAlignVertical="top"
                     value={bio}
@@ -151,29 +157,31 @@ export default function CreateStoreScreen(): React.ReactElement {
 
               {/* Toggle CNPJ/CPF */}
               <View>
-                <Text className="text-ink-5 text-xs font-bold uppercase mb-2 ml-1 tracking-widest">Documento</Text>
+                <Text className="text-ink text-sm font-sans-bold mb-2">Documento</Text>
                 <View className="flex-row gap-x-2 mb-3">
                   {(['CNPJ', 'CPF'] as const).map((tipo) => (
                     <TouchableOpacity
                       key={tipo}
                       onPress={() => atualizarTipo(tipo)}
-                      className={`flex-1 py-3 rounded-xl items-center border ${
-                        documentType === tipo ? 'bg-brand border-brand' : 'bg-surface border-surface-4'
+                      accessibilityRole="button"
+                      accessibilityState={{ selected: documentType === tipo }}
+                      className={`flex-1 h-12 rounded-card items-center justify-center border-2 border-ink ${
+                        documentType === tipo ? 'bg-ink' : 'bg-surface'
                       }`}
                     >
-                      <Text className={`font-bold text-sm ${documentType === tipo ? 'text-white' : 'text-ink-4'}`}>
+                      <Text className={`font-sans-bold text-base ${documentType === tipo ? 'text-white' : 'text-ink'}`}>
                         {tipo}
                       </Text>
                     </TouchableOpacity>
                   ))}
                 </View>
 
-                <View className="bg-surface border border-surface-4 rounded-2xl px-4 flex-row items-center h-14">
+                <View className="bg-surface border border-b-2 border-surface-5 border-b-ink px-4 flex-row items-center h-14">
                   <Ionicons name="document-text-outline" size={20} color={colors.ink[5]} />
                   <TextInput
-                    className="flex-1 ml-3 text-ink font-medium"
+                    className="flex-1 ml-3 text-ink font-sans-medium"
                     placeholder={documentType === 'CNPJ' ? '00.000.000/0000-00' : '000.000.000-00'}
-                    placeholderTextColor={colors.ink[6]}
+                    placeholderTextColor={colors.ink[5]}
                     keyboardType="numeric"
                     value={documentNumber}
                     onChangeText={atualizarDocumento}
@@ -185,9 +193,9 @@ export default function CreateStoreScreen(): React.ReactElement {
                 </View>
 
                 {verifyResult?.valid && (
-                  <View className="mt-3 bg-success/10 border border-success/25 rounded-2xl p-4 flex-row gap-3">
-                    <Ionicons name="checkmark-circle" size={20} color={colors.success} />
-                    <Text className="text-ink-2 text-sm flex-1 leading-5">{verifyResult.message}</Text>
+                  <View className="mt-3 bg-surface border-2 border-success rounded-card p-4 flex-row items-center gap-3">
+                    <Ionicons name="checkmark-circle" size={24} color={colors.success} />
+                    <Text className="text-ink text-base flex-1 leading-5">{verifyResult.message}</Text>
                   </View>
                 )}
               </View>
@@ -196,7 +204,7 @@ export default function CreateStoreScreen(): React.ReactElement {
             <View className="mt-8">
               <Button
                 variant="primary"
-                label="CRIAR LOJA"
+                label="Criar loja" icon="arrow-forward"
                 onPress={handleCreate}
                 loading={submitting}
                 disabled={!podeConfirmar}
@@ -204,7 +212,7 @@ export default function CreateStoreScreen(): React.ReactElement {
             </View>
 
           </ScrollView>
-        </SafeAreaView>
+        </View>
       </KeyboardAvoidingView>
     </View>
   );

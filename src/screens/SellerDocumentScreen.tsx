@@ -3,14 +3,13 @@ import {
   Alert,
   KeyboardAvoidingView,
   Platform,
-  SafeAreaView,
   ScrollView,
   StatusBar,
-  Text,
   TextInput,
   TouchableOpacity,
   View,
 } from 'react-native';
+import Text from '../components/Text';
 import { Ionicons } from '@expo/vector-icons';
 import { useNavigation } from '@react-navigation/native';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
@@ -18,6 +17,7 @@ import { colors } from '../theme/colors';
 import { verifySellerDocument, submitSellerDocument } from '../lib/sellers';
 import { DocumentVerifyResponse } from '../types/api';
 import Button from '../components/Button';
+import ScreenHeader from '../components/ScreenHeader';
 
 /**
  * "Documento fiscal (CPF/CNPJ)" no `CompanyProfileScreen` — antes um
@@ -89,13 +89,10 @@ export default function SellerDocumentScreen(): React.ReactElement {
 
   return (
     <View className="flex-1 bg-background">
-      <StatusBar barStyle="dark-content" />
+      <StatusBar barStyle="dark-content" backgroundColor={colors.background} />
       <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : 'height'} className="flex-1">
-        <SafeAreaView className="flex-1">
-          <View className="flex-row items-center px-5 pt-4 pb-2 gap-3">
-            <Button variant="icon" icon="chevron-back" accessibilityLabel="Voltar" onPress={() => navigation.goBack()} />
-            <Text className="text-ink text-xl font-bold tracking-tight">Documento fiscal</Text>
-          </View>
+        <View className="flex-1">
+          <ScreenHeader title="Documento fiscal" onBack={() => navigation.goBack()} />
 
           <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={{ paddingHorizontal: 24, paddingTop: 12, paddingBottom: 40 }}>
             <Text className="text-ink-4 text-sm mb-6 leading-6">
@@ -107,23 +104,25 @@ export default function SellerDocumentScreen(): React.ReactElement {
                 <TouchableOpacity
                   key={tipo}
                   onPress={() => atualizarTipo(tipo)}
-                  className={`flex-1 py-3 rounded-xl items-center border ${
-                    documentType === tipo ? 'bg-brand border-brand' : 'bg-surface border-surface-4'
+                  accessibilityRole="button"
+                  accessibilityState={{ selected: documentType === tipo }}
+                  className={`flex-1 h-12 rounded-card items-center justify-center border-2 border-ink ${
+                    documentType === tipo ? 'bg-ink' : 'bg-surface'
                   }`}
                 >
-                  <Text className={`font-bold text-sm ${documentType === tipo ? 'text-white' : 'text-ink-4'}`}>
+                  <Text className={`font-sans-bold text-base ${documentType === tipo ? 'text-white' : 'text-ink'}`}>
                     {tipo}
                   </Text>
                 </TouchableOpacity>
               ))}
             </View>
 
-            <View className="bg-surface border border-surface-4 rounded-2xl px-4 flex-row items-center h-14">
+            <View className="bg-surface border border-b-2 border-surface-5 border-b-ink px-4 flex-row items-center h-14">
               <Ionicons name="document-text-outline" size={20} color={colors.ink[5]} />
               <TextInput
-                className="flex-1 ml-3 text-ink font-medium"
+                className="flex-1 ml-3 text-ink font-sans-medium"
                 placeholder={documentType === 'CNPJ' ? '00.000.000/0000-00' : '000.000.000-00'}
-                placeholderTextColor={colors.ink[6]}
+                placeholderTextColor={colors.ink[5]}
                 keyboardType="numeric"
                 value={documentNumber}
                 onChangeText={atualizarDocumento}
@@ -135,23 +134,23 @@ export default function SellerDocumentScreen(): React.ReactElement {
             </View>
 
             {verifyResult?.valid && (
-              <View className="mt-3 bg-success/10 border border-success/25 rounded-2xl p-4 flex-row gap-3">
-                <Ionicons name="checkmark-circle" size={20} color={colors.success} />
-                <Text className="text-ink-2 text-sm flex-1 leading-5">{verifyResult.message}</Text>
+              <View className="mt-3 bg-surface border-2 border-success rounded-card p-4 flex-row items-center gap-3">
+              <Ionicons name="checkmark-circle" size={24} color={colors.success} />
+              <Text className="text-ink text-base flex-1 leading-5">{verifyResult.message}</Text>
               </View>
             )}
 
             <View className="mt-8">
               <Button
                 variant="primary"
-                label="SALVAR"
+                label="Salvar"
                 onPress={handleSubmit}
                 loading={submitting}
                 disabled={!podeConfirmar}
               />
             </View>
           </ScrollView>
-        </SafeAreaView>
+        </View>
       </KeyboardAvoidingView>
     </View>
   );

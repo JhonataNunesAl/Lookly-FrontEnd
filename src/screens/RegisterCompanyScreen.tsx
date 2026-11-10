@@ -1,16 +1,15 @@
 import React, { useState } from 'react';
 import {
   View,
-  Text,
   TextInput,
   TouchableOpacity,
   ScrollView,
-  SafeAreaView,
   StatusBar,
   Image,
   KeyboardAvoidingView,
   Platform,
 } from 'react-native';
+import Text from '../components/Text';
 import { Ionicons } from '@expo/vector-icons';
 import { useNavigation } from '@react-navigation/native';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
@@ -23,6 +22,8 @@ import { SellerCreate } from '../types/api';
 import BirthDateInput from '../components/BirthDateInput';
 import { toISODate, isAdult } from '../utils/birthDate';
 import { slugify } from '../utils/format';
+import { submitSellerDocument } from '../lib/sellers';
+import ScreenHeader from '../components/ScreenHeader';
 
 export default function RegisterCompanyScreen(): React.ReactElement {
   const [logo, setLogo] = useState<string | null>(null);
@@ -83,8 +84,12 @@ const handleRegister = async () => {
       return;
     }
 
-    // `category` não existe no SellerCreate v2 e o CNPJ é cifrado à parte
-    // (fluxo de verificação em CreateStoreScreen), então não vão neste payload.
+    // `category` não existe no SellerCreate v2 e o CNPJ é cifrado à parte, então
+    // não vão neste payload: o CNPJ segue por `documentPayload` e é gravado em
+    // PUT /sellers/me/document logo depois da loja (antes era digitado e descartado).
+    const documentPayload = cnpj.trim()
+      ? ({ document_number: cnpj.trim(), document_type: 'CNPJ' } as const)
+      : undefined;
     const sellerPayload: SellerCreate = {
       store_name: brandName.trim(),
       store_slug: slugify(brandName),
@@ -100,12 +105,23 @@ const handleRegister = async () => {
         email: email.trim(),
         onConfirmedNavigateTo: 'MainBusiness',
         sellerPayload,
+        documentPayload,
       });
       return;
     }
 
     // Confirmação de e-mail desligada no projeto: sessão já existe, cria a loja direto.
     await api.post('/sellers', sellerPayload);
+    if (documentPayload) {
+      try {
+        await submitSellerDocument(documentPayload);
+      } catch {
+        Alert.alert(
+          'Loja criada, documento não',
+          'Não foi possível validar o CNPJ agora. Você pode enviá-lo depois, em Perfil > Documento fiscal.',
+        );
+      }
+    }
     navigation.replace('MainBusiness');
   } catch (error: any) {
     const detail = error?.response?.data?.detail;
@@ -122,39 +138,36 @@ const handleRegister = async () => {
   return (
     
     <View className="flex-1 bg-background">
-      <StatusBar barStyle="dark-content" />
+      <StatusBar barStyle="dark-content" backgroundColor={colors.background} />
+
+      <ScreenHeader title="Conta empresa" onBack={() => navigation.goBack()} />
 
       <KeyboardAvoidingView 
         behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
         className="flex-1"
       >
-        <SafeAreaView className="flex-1">
+        <View className="flex-1">
           <ScrollView 
             showsVerticalScrollIndicator={false}
             contentContainerStyle={{ paddingHorizontal: 24, paddingBottom: 40 }}
           >
             
-            {/* Header */}
-            <View className="mt-8 mb-10">
-              <TouchableOpacity onPress={() => navigation.goBack()} className="mb-4">
-                <Ionicons name="arrow-back" size={24} color={colors.ink.DEFAULT} />
-              </TouchableOpacity>
-              <Text className="text-ink text-3xl font-bold tracking-tight">Perfil Business</Text>
-              <Text className="text-ink-4 mt-2">Dados da marca e acesso ao painel.</Text>
-            </View>
+            <Text className="text-ink text-lg font-sans-semibold mt-6 mb-6">
+              Dados da marca e acesso ao painel.
+            </Text>
 
             {/* Upload de Logo */}
             <View className="items-center mb-10">
               <TouchableOpacity 
                 activeOpacity={0.8}
-                className="w-28 h-28 rounded-[40px] bg-surface border-2 border-dashed border-brand/40 items-center justify-center overflow-hidden"
+                className="w-28 h-28 rounded-card bg-surface border-2 border-dashed border-ink items-center justify-center overflow-hidden"
               >
                 {logo ? (
                   <Image source={{ uri: logo }} className="w-full h-full" />
                 ) : (
                   <View className="items-center">
-                    <Ionicons name="cloud-upload-outline" size={32} color={colors.brand.DEFAULT} />
-                    <Text className="text-brand text-[10px] font-bold mt-1 uppercase tracking-tighter">Logo</Text>
+                    <Ionicons name="cloud-upload-outline" size={32} color={colors.ink.DEFAULT} />
+                    <Text className="text-ink text-sm font-sans-bold mt-1">Logo</Text>
                   </View>
                 )}
               </TouchableOpacity>
@@ -173,7 +186,7 @@ const handleRegister = async () => {
 
               {/* Campo CNPJ Mantido */}
               <InputField 
-                label="CNPJ" 
+                label="Cnpj" 
                 placeholder="00.000.000/0000-00" 
                 value={cnpj}
                 onChange={setCnpj}
@@ -191,19 +204,24 @@ const handleRegister = async () => {
               />
 
               <View>
-                <Text className="text-ink-5 text-xs font-bold uppercase mb-2 ml-1 tracking-widest">Senha</Text>
-                <View className="bg-surface border border-surface-4 rounded-2xl px-4 flex-row items-center h-16">
+                <Text className="text-ink text-sm font-sans-bold mb-2">Senha</Text>
+                <View className="bg-surface border border-b-2 border-surface-5 border-b-ink px-4 flex-row items-center h-16">
                   <Ionicons name="lock-closed-outline" size={20} color={colors.ink[5]} />
                   <TextInput
-                    className="flex-1 ml-3 text-ink font-medium"
+                    className="flex-1 ml-3 text-ink font-sans-medium"
                     placeholder="••••••••"
-                    placeholderTextColor={colors.ink[6]}
+                    placeholderTextColor={colors.ink[5]}
                     secureTextEntry={!showPassword}
                     value={password}
                     onChangeText={setPassword}
                   />
-                  <TouchableOpacity onPress={() => setShowPassword(!showPassword)}>
-                    <Ionicons name={showPassword ? "eye-off-outline" : "eye-outline"} size={20} color={colors.ink[5]} />
+                  <TouchableOpacity
+                    onPress={() => setShowPassword(!showPassword)}
+                    accessibilityRole="button"
+                    accessibilityLabel={showPassword ? 'Ocultar senha' : 'Mostrar senha'}
+                    className="w-12 h-14 -mr-3 items-center justify-center"
+                  >
+                    <Ionicons name={showPassword ? "eye-off-outline" : "eye-outline"} size={22} color={colors.ink.DEFAULT} />
                   </TouchableOpacity>
                 </View>
               </View>
@@ -218,12 +236,12 @@ const handleRegister = async () => {
               />
 
               <View>
-                <Text className="text-ink-5 text-xs font-bold uppercase mb-3 ml-1 tracking-widest">Bio da Marca</Text>
-                <View className="bg-surface border border-surface-4 rounded-3xl px-4 py-3 h-28">
+                <Text className="text-ink text-sm font-sans-bold mb-2">Bio da marca</Text>
+                <View className="bg-surface border border-b-2 border-surface-5 border-b-ink px-4 py-3 h-28">
                   <TextInput
                     className="text-ink text-sm"
                     placeholder="Descreva o estilo da sua marca para os clientes..."
-                    placeholderTextColor={colors.ink[6]}
+                    placeholderTextColor={colors.ink[5]}
                     multiline
                     textAlignVertical="top"
                     value={bio}
@@ -234,15 +252,15 @@ const handleRegister = async () => {
 
               {/* Seletor de Segmento */}
               <View>
-                <Text className="text-ink-5 text-xs font-bold uppercase mb-3 ml-1 tracking-widest">Segmento Principal</Text>
+                <Text className="text-ink text-sm font-sans-bold mb-2">Segmento principal</Text>
                 <ScrollView horizontal showsHorizontalScrollIndicator={false} className="flex-row">
                   {categories.map((cat) => (
                     <TouchableOpacity 
                       key={cat}
                       onPress={() => setCategory(cat)}
-                      className={`mr-2 px-6 py-3 rounded-full border ${category === cat ? 'bg-brand border-brand' : 'bg-surface border-surface-4'}`}
+                      className={`mr-2 min-h-12 px-4 justify-center rounded-lg border-2 border-ink ${category === cat ? 'bg-ink' : 'bg-surface'}`}
                     >
-                      <Text className={`text-xs font-bold ${category === cat ? 'text-white' : 'text-ink-4'}`}>{cat}</Text>
+                      <Text className={`text-sm font-sans-bold ${category === cat ? 'text-white' : 'text-ink'}`}>{cat}</Text>
                     </TouchableOpacity>
                   ))}
                 </ScrollView>
@@ -252,10 +270,10 @@ const handleRegister = async () => {
 
             {/* Botão Finalizar */}
             <View className="mt-6">
-              <Button variant="primary" label="CRIAR CONTA EMPRESA" onPress={handleRegister} loading={loading} />
+              <Button variant="primary" label="Criar conta empresa" icon="arrow-forward" onPress={handleRegister} loading={loading} />
             </View>
           </ScrollView>
-        </SafeAreaView>
+        </View>
       </KeyboardAvoidingView>
     </View>
   );
@@ -265,13 +283,13 @@ const handleRegister = async () => {
 function InputField({ label, placeholder, value, onChange, icon, keyboardType = 'default' }: any) {
   return (
     <View>
-      <Text className="text-ink-5 text-xs font-bold uppercase mb-2 ml-1 tracking-widest">{label}</Text>
-      <View className="bg-surface border border-surface-4 rounded-2xl px-4 flex-row items-center h-16">
+      <Text className="text-ink text-sm font-sans-bold mb-2">{label}</Text>
+      <View className="bg-surface border border-b-2 border-surface-5 border-b-ink px-4 flex-row items-center h-16">
         <Ionicons name={icon} size={20} color={colors.ink[5]} />
         <TextInput
-          className="flex-1 ml-3 text-ink font-medium"
+          className="flex-1 ml-3 text-ink font-sans-medium"
           placeholder={placeholder}
-          placeholderTextColor={colors.ink[6]}
+          placeholderTextColor={colors.ink[5]}
           value={value}
           onChangeText={onChange}
           keyboardType={keyboardType}

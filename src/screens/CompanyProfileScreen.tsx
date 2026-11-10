@@ -1,15 +1,25 @@
 import React, { useCallback, useState } from 'react';
 import {
-  ActivityIndicator, View, Text, ScrollView, TouchableOpacity, StatusBar, Image, Linking,
+  ActivityIndicator,
+  View,
+  ScrollView,
+  TouchableOpacity,
+  StatusBar,
+  Image,
+  Linking,
+  Alert,
 } from 'react-native';
+import Text from '../components/Text';
 import { Ionicons } from '@expo/vector-icons';
 import { useFocusEffect, useNavigation } from '@react-navigation/native';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
+import { SafeAreaView } from 'react-native-safe-area-context';
 import { colors } from '../theme/colors';
-import { StatTile, SectionTitle, MenuButton } from '../components/PanelKit';
+import { StatBoard, SectionTitle, MenuButton } from '../components/PanelKit';
 import Button from '../components/Button';
 import { SellerResponse } from '../types/api';
-import { fetchMyStore } from '../lib/sellers';
+import { fetchMyStore, updateMyStore } from '../lib/sellers';
+import { enviarFoto, erroDeUpload, escolherFotos } from '../lib/media';
 import { supabase } from '../lib/supabase';
 
 /**
@@ -29,6 +39,7 @@ export default function CompanyProfileScreen(): React.ReactElement {
   const [loja, setLoja] = useState<SellerResponse | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(false);
+  const [trocandoLogo, setTrocandoLogo] = useState(false);
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -44,6 +55,21 @@ export default function CompanyProfileScreen(): React.ReactElement {
 
   useFocusEffect(useCallback(() => { load(); }, [load]));
 
+  /** Escolhe uma foto quadrada, envia e grava como logo da loja. */
+  const trocarLogo = async () => {
+    try {
+      const [foto] = await escolherFotos({ max: 1, recortar: [1, 1] });
+      if (!foto) return;
+      setTrocandoLogo(true);
+      const url = await enviarFoto(foto);
+      setLoja(await updateMyStore({ store_logo_url: url }));
+    } catch (e) {
+      Alert.alert('Logo', erroDeUpload(e));
+    } finally {
+      setTrocandoLogo(false);
+    }
+  };
+
   const handleLogout = async () => {
     await supabase.auth.signOut();
     navigation.reset({ index: 0, routes: [{ name: 'Login' }] });
@@ -58,7 +84,7 @@ export default function CompanyProfileScreen(): React.ReactElement {
   if (loading) {
     return (
       <View className="flex-1 bg-background items-center justify-center">
-        <ActivityIndicator color={colors.brand.DEFAULT} size="large" />
+        <ActivityIndicator color={colors.ink.DEFAULT} size="large" />
       </View>
     );
   }
@@ -66,10 +92,12 @@ export default function CompanyProfileScreen(): React.ReactElement {
   if (error || !loja) {
     return (
       <View className="flex-1 bg-background items-center justify-center px-10">
-        <Ionicons name="cloud-offline-outline" size={30} color={colors.danger} />
-        <Text className="text-ink text-lg font-bold text-center mt-4">Não foi possível carregar sua loja</Text>
+        <View className="w-16 h-16 rounded-lg bg-danger items-center justify-center mb-4">
+          <Ionicons name="cloud-offline-outline" size={32} color={colors.white} />
+        </View>
+        <Text className="text-ink text-xl font-display-bold text-center">Não foi possível carregar sua loja</Text>
         <View className="mt-6 self-stretch">
-          <Button variant="primary" label="Tentar de novo" onPress={load} />
+          <Button variant="primary" label="Tentar de novo" icon="refresh" onPress={load} />
         </View>
       </View>
     );
@@ -77,57 +105,59 @@ export default function CompanyProfileScreen(): React.ReactElement {
 
   return (
     <View className="flex-1 bg-background">
-      <StatusBar barStyle="dark-content" />
+      <StatusBar barStyle="dark-content" backgroundColor={colors.background} />
 
-      <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={{ paddingBottom: 110 }}>
+      <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={{ paddingBottom: 24 }}>
 
-        {/* ── Cartão da marca ── */}
-        <View className="mx-4 mt-4 rounded-hero bg-ink p-6">
-          <View className="flex-row items-center gap-4">
-            <View className="relative">
-              <Image
-                source={{ uri: loja.store_logo_url ?? undefined }}
-                className="w-20 h-20 rounded-3xl bg-ink-2"
-              />
-              <TouchableOpacity
-                accessibilityRole="button"
-                accessibilityLabel="Trocar logo da loja"
-                onPress={() => navigation.navigate('ComingSoon', {
-                  title: 'Trocar logo',
-                  description: 'Upload de imagem ainda não existe no app — precisa de um seletor de foto e um bucket de armazenamento.',
-                  icon: 'camera-outline',
-                })}
-                className="absolute -bottom-1 -right-1 bg-brand w-8 h-8 rounded-full items-center justify-center border-2 border-ink"
-              >
-                <Ionicons name="camera" size={15} color={colors.white} />
-              </TouchableOpacity>
-            </View>
+        {/* ── Cabeçalho da marca: logo, nome e nota ── */}
+        <SafeAreaView edges={['top']} className="bg-background border-b-2 border-ink">
+          <View className="flex-row items-center gap-4 px-5 pt-4 pb-5">
+            {loja.store_logo_url ? (
+              <Image source={{ uri: loja.store_logo_url }} className="w-20 h-20 rounded-card border border-surface-5 bg-surface-4" />
+            ) : (
+              <View className="w-20 h-20 rounded-card bg-ink items-center justify-center">
+                <Ionicons name="storefront" size={40} color={colors.signal.DEFAULT} />
+              </View>
+            )}
 
             <View className="flex-1">
-              <Text className="text-background text-2xl font-bold" numberOfLines={1}>
+              <Text className="text-ink text-2xl font-display-bold" numberOfLines={1}>
                 {loja.store_name}
               </Text>
-              <View className="flex-row items-center gap-1 mt-1">
-                <Ionicons name="star" size={12} color={colors.brand.light} />
-                <Text className="text-ink-6 text-xs">
-                  {loja.rating ?? '—'} · {loja.total_reviews ?? 0} avaliações
+              <View className="flex-row items-center gap-1 mt-0.5">
+                <Ionicons name="star" size={16} color={colors.ink.DEFAULT} />
+                <Text className="text-ink-2 text-base font-sans-semibold">
+                  {loja.total_reviews
+                    ? `${String(loja.rating).replace('.', ',')} · ${loja.total_reviews} ${loja.total_reviews === 1 ? 'avaliação' : 'avaliações'}`
+                    : 'Sem avaliações ainda'}
                 </Text>
               </View>
             </View>
-          </View>
 
+            <Button
+              variant="icon"
+              icon="camera"
+              accessibilityLabel="Trocar logo da loja"
+              onPress={trocarLogo}
+              loading={trocandoLogo}
+            />
+          </View>
           {loja.description ? (
-            <Text className="text-ink-6 text-xs leading-5 mt-4">{loja.description}</Text>
+            <Text className="text-ink-2 text-base leading-6 px-5 pb-5">{loja.description}</Text>
           ) : null}
+        </SafeAreaView>
 
-          <View className="flex-row gap-3 mt-6">
-            <StatTile value={loja.rating ?? '—'} label="Nota" />
-            <StatTile value={loja.total_reviews ?? 0} label="Avaliações" />
-          </View>
+        <View className="bg-ink px-5 py-1">
+          <StatBoard
+            items={[
+              { label: 'Nota', value: loja.total_reviews ? String(loja.rating).replace('.', ',') : '—' },
+              { label: 'Avaliações', value: loja.total_reviews ?? 0 },
+            ]}
+          />
         </View>
 
         {/* ── Menu ── */}
-        <View className="px-4 mt-8 gap-y-3">
+        <View className="px-4 mt-6 gap-y-3">
           <SectionTitle title="Minha Loja" />
 
           <MenuButton
@@ -143,7 +173,11 @@ export default function CompanyProfileScreen(): React.ReactElement {
           <MenuButton
             icon="cube-outline"
             label="Pedidos Recebidos"
-            onPress={() => navigation.navigate('Pedidos')}
+            onPress={() => navigation.navigate('ComingSoon', {
+              title: 'Pedidos recebidos',
+              description: 'Os pedidos da sua loja aparecem aqui quando o checkout e o pagamento existirem — hoje o backend ainda não tem pedidos.',
+              icon: 'cube-outline',
+            })}
           />
 
           <SectionTitle title="Dados da Empresa" />
