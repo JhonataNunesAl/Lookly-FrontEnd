@@ -2,12 +2,11 @@ import React, { useEffect, useState } from 'react';
 import {
   ActivityIndicator,
   View,
-  Text,
-  SafeAreaView,
   ScrollView,
-  Image,
   StatusBar,
 } from 'react-native';
+import Text from '../components/Text';
+import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { useNavigation } from '@react-navigation/native';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
@@ -15,6 +14,9 @@ import { Order } from '../types/commerce';
 import { fetchOrders } from '../lib/commerce';
 import { colors } from '../theme/colors';
 import Button from '../components/Button';
+import PecaFoto from '../components/PecaFoto';
+import ScreenHeader from '../components/ScreenHeader';
+import { formatarMoeda } from '../utils/format';
 
 const STATUS_LABEL: Record<string, string> = {
   pending_payment: 'Aguardando pagamento',
@@ -45,98 +47,95 @@ export default function PedidoScreen(): React.ReactElement {
 
   if (loading) {
     return (
-      <SafeAreaView className="flex-1 bg-background items-center justify-center">
-        <ActivityIndicator color={colors.brand.DEFAULT} size="large" />
-      </SafeAreaView>
+      <View className="flex-1 bg-background">
+        <ScreenHeader title="Pedido" onBack={() => navigation.goBack()} />
+        <View className="flex-1 items-center justify-center">
+          <ActivityIndicator color={colors.ink.DEFAULT} size="large" />
+        </View>
+      </View>
     );
   }
 
   if (!order) {
     return (
-      <SafeAreaView className="flex-1 bg-background items-center justify-center px-10">
-        <Ionicons name="cube-outline" size={40} color={colors.ink[5]} />
-        <Text className="text-ink text-lg font-bold text-center mt-4">Nenhum pedido encontrado</Text>
-      </SafeAreaView>
+      <View className="flex-1 bg-background">
+        <StatusBar barStyle="dark-content" backgroundColor={colors.background} />
+        <ScreenHeader title="Pedidos" onBack={() => navigation.goBack()} />
+        <View className="flex-1 items-center justify-center px-8">
+          <View className="w-16 h-16 rounded-lg bg-ink items-center justify-center mb-4">
+            <Ionicons name="cube-outline" size={32} color={colors.signal.DEFAULT} />
+          </View>
+          <Text className="text-ink text-2xl font-display-bold text-center">Nenhum pedido ainda</Text>
+          <Text className="text-ink-4 text-base text-center mt-2">Quando você finalizar uma compra, ela aparece aqui.</Text>
+        </View>
+      </View>
     );
   }
 
   const subOrder = order.subOrders[0];
+  const etapas = ['Pedido', 'Pagamento', 'Envio', 'Entrega'];
+  const etapaAtual = { pending_payment: 0, paid: 1, preparing: 1, shipped: 2, delivered: 3, cancelled: 0 }[
+    subOrder?.status ?? 'preparing'
+  ] ?? 1;
 
   return (
-    <SafeAreaView className="flex-1 bg-background">
-      <StatusBar barStyle="dark-content" />
+    <View className="flex-1 bg-background">
+      <StatusBar barStyle="dark-content" backgroundColor={colors.background} />
+      <ScreenHeader title="Pedido realizado" subtitle={`Nº ${order.id}`} onBack={() => navigation.goBack()} />
 
-      <ScrollView className="flex-1 px-5" showsVerticalScrollIndicator={false}>
+      <ScrollView className="flex-1" contentContainerStyle={{ padding: 16 }} showsVerticalScrollIndicator={false}>
 
-        {/* Header de Sucesso */}
-        <View className="items-center py-10">
-          <View className="w-20 h-20 bg-success/10 rounded-full items-center justify-center mb-4">
-            <Ionicons name="checkmark-circle" size={60} color={colors.success} />
-          </View>
-          <Text className="text-ink text-2xl font-bold">Pedido Realizado!</Text>
-          <Text className="text-ink-4 mt-1 text-center">
-            Obrigado pela compra. Estamos preparando seu look com cuidado.
-          </Text>
-        </View>
-
-        {/* Card de Status */}
-        <View className="bg-surface border border-surface-4 rounded-card p-5 mb-6">
-          <View className="flex-row justify-between items-center mb-4">
-            <View>
-              <Text className="text-ink-4 text-xs uppercase tracking-tighter">Número do Pedido</Text>
-              <Text className="text-ink font-bold text-lg">{order.id}</Text>
+        {/* Situação: faixa preta com o status por extenso */}
+        <View className="bg-ink rounded-card p-5 mb-3">
+          <View className="flex-row items-center gap-3 mb-5">
+            <View className="w-12 h-12 rounded-lg bg-seal items-center justify-center">
+              <Ionicons name="checkmark" size={30} color={colors.white} />
             </View>
-            <View className="bg-brand/10 border border-brand/25 px-3 py-1 rounded-full">
-              <Text className="text-brand font-bold text-xs">{STATUS_LABEL[subOrder?.status ?? 'preparing']}</Text>
+            <View className="flex-1">
+              <Text className="text-white text-lg font-display-bold">{STATUS_LABEL[subOrder?.status ?? 'preparing']}</Text>
+              <Text className="text-white text-sm">Estamos preparando seu look com cuidado.</Text>
             </View>
           </View>
 
-          {/* Stepper de Status Simplificado */}
-          <View className="flex-row items-center justify-between mt-2 px-2">
-            <View className="items-center">
-              <View className="w-3 h-3 rounded-full bg-brand" />
-              <Text className="text-ink text-[10px] mt-1 font-medium">Pedido</Text>
-            </View>
-            <View className="flex-1 h-[2px] bg-brand mx-2" />
-            <View className="items-center">
-              <View className="w-3 h-3 rounded-full bg-brand" />
-              <Text className="text-ink text-[10px] mt-1 font-medium">Pagamento</Text>
-            </View>
-            <View className="flex-1 h-[2px] bg-surface-5 mx-2" />
-            <View className="items-center">
-              <View className="w-3 h-3 rounded-full bg-surface-5" />
-              <Text className="text-ink-4 text-[10px] mt-1">Envio</Text>
-            </View>
-            <View className="flex-1 h-[2px] bg-surface-5 mx-2" />
-            <View className="items-center">
-              <View className="w-3 h-3 rounded-full bg-surface-5" />
-              <Text className="text-ink-4 text-[10px] mt-1">Entrega</Text>
-            </View>
+          {/* Etapas: quadrados preenchidos até a etapa atual */}
+          <View className="flex-row items-center">
+            {etapas.map((nome, i) => (
+              <React.Fragment key={nome}>
+                <View className="items-center">
+                  <View className={`w-4 h-4 rounded-sm ${i <= etapaAtual ? 'bg-seal' : 'bg-ink-3'}`} />
+                  <Text className={`text-xs mt-1.5 ${i <= etapaAtual ? 'text-white font-sans-bold' : 'text-white/70'}`}>{nome}</Text>
+                </View>
+                {i < etapas.length - 1 && (
+                  <View className={`flex-1 h-[3px] mx-1 mb-5 ${i < etapaAtual ? 'bg-seal' : 'bg-ink-3'}`} />
+                )}
+              </React.Fragment>
+            ))}
           </View>
         </View>
 
-        {/* Resumo do Produto */}
-        <Text className="text-ink font-bold text-lg mb-4">Itens do Pedido</Text>
+        {/* Itens */}
         {subOrder?.items.map((item) => (
-          <View key={item.id} className="flex-row items-center bg-surface rounded-2xl p-3 mb-6 border border-surface-4">
-            <Image source={{ uri: item.photo }} className="w-16 h-20 rounded-xl bg-surface-4" />
-            <View className="ml-4 flex-1">
-              <Text className="text-ink font-semibold">{item.lookName}</Text>
+          <View key={item.id} className="flex-row items-center bg-surface rounded-card border border-surface-5 p-3 mb-2">
+            <PecaFoto uri={item.photo} compact className="w-16 h-20 rounded-lg" />
+            <View className="ml-3 flex-1">
+              <Text className="text-ink text-base font-sans-bold" numberOfLines={2}>{item.lookName}</Text>
               {item.selectedSize ? (
-                <Text className="text-ink-4 text-xs">Tamanho: {item.selectedSize}</Text>
+                <Text className="text-ink-4 text-sm">Tamanho {item.selectedSize}</Text>
               ) : null}
-              <Text className="text-brand font-bold mt-1">R$ {Number(item.unitPrice).toFixed(2)}</Text>
+              <Text className="text-ink text-lg font-display-bold mt-0.5">{formatarMoeda(Number(item.unitPrice), true)}</Text>
             </View>
           </View>
         ))}
 
-        {/* Detalhes de Entrega */}
-        <View className="bg-surface rounded-card p-5 mb-8 border border-surface-4">
-          <View className="flex-row items-center mb-4">
-            <Ionicons name="location-outline" size={20} color={colors.brand.DEFAULT} />
-            <Text className="text-ink font-bold ml-2">Endereço de Entrega</Text>
+        {/* Entrega */}
+        <View className="bg-surface rounded-card border border-surface-5 p-5 mt-1">
+          <View className="flex-row items-center gap-3 mb-3">
+            <View className="w-10 h-10 rounded-lg bg-ink items-center justify-center">
+              <Ionicons name="location" size={22} color={colors.white} />
+            </View>
+            <Text className="text-ink text-base font-sans-bold">Endereço de entrega</Text>
           </View>
-          <Text className="text-ink-4 text-sm leading-5">
+          <Text className="text-ink-3 text-base leading-6">
             {order.address.line1}{order.address.line2 ? ` • ${order.address.line2}` : ''}{"\n"}
             {order.address.neighborhood}, {order.address.city} - {order.address.state}{"\n"}
             CEP: {order.address.zipCode}
@@ -145,19 +144,22 @@ export default function PedidoScreen(): React.ReactElement {
 
       </ScrollView>
 
-      {/* Botões de Ação Fixos */}
-      <View className="p-5 bg-background border-t border-surface-4 gap-y-3">
-        <Button
-          variant="primary"
-          label="Acompanhar Entrega"
-          onPress={() => navigation.navigate('ComingSoon', {
-            title: 'Rastreio de entrega',
-            description: 'Acompanhamento de envio em tempo real ainda não existe — depende da camada de comércio e de integração com transportadora.',
-            icon: 'navigate-outline',
-          })}
-        />
-        <Button variant="secondary" label="Voltar para o Feed" onPress={() => navigation.navigate('MainUser')} />
-      </View>
-    </SafeAreaView>
+      {/* Ações fixas */}
+      <SafeAreaView edges={['bottom']} className="bg-background">
+        <View className="px-4 pt-3 pb-3 gap-y-2">
+          <Button
+            variant="primary"
+            label="Acompanhar entrega"
+            icon="navigate-outline"
+            onPress={() => navigation.navigate('ComingSoon', {
+              title: 'Rastreio de entrega',
+              description: 'Acompanhamento de envio em tempo real ainda não existe — depende da camada de comércio e de integração com transportadora.',
+              icon: 'navigate-outline',
+            })}
+          />
+          <Button variant="secondary" label="Voltar para o feed" onPress={() => navigation.navigate('MainUser')} />
+        </View>
+      </SafeAreaView>
+    </View>
   );
 }

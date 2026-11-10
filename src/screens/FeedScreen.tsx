@@ -6,31 +6,32 @@ import React, {
 } from 'react';
 import {
   View,
-  Text,
   Animated,
   PanResponder,
   TouchableOpacity,
   Dimensions,
-  Image,
   ActivityIndicator,
-  SafeAreaView,
   StatusBar,
   ScrollView,
 } from 'react-native';
-import { LinearGradient } from 'expo-linear-gradient';
+import Text from '../components/Text';
+import { SafeAreaView } from 'react-native-safe-area-context';
 import { InteractionType } from '../types';
 import { LookResponse, CategoryResponse } from '../types/api';
 import { fetchFeed, sendSwipe, saveLook } from '../lib/feed';
+import { addToCart, mensagemDeErroCarrinho } from '../lib/commerce';
 import { fetchCategories } from '../lib/categories';
-import { formatarMoeda, formatarNumero } from '../utils/format';
+import { contar, partesDoPreco } from '../utils/format';
 import Toast from '../components/Toast';
+import PecaFoto from '../components/PecaFoto';
+import { refDaPeca } from '../components/PecaRow';
 import ProductDetailSheet from '../components/ProductDetailSheet';
 import { Ionicons } from '@expo/vector-icons';
-import { colors, PHOTO_SCRIM } from '../theme/colors';
+import { colors } from '../theme/colors';
 import { SwipeActionButton, SwipeStamp } from '../components/SwipeAction';
 import Button from '../components/Button';
 
-const { width, height } = Dimensions.get('window');
+const { width } = Dimensions.get('window');
 const SWIPE_THRESHOLD = 90;
 /** Abaixo disso na fila, busca a próxima página. */
 const REFILL_AT = 5;
@@ -46,9 +47,13 @@ export default function FeedScreen(): React.ReactElement {
   const [detailLook, setDetailLook] = useState<LookResponse | null>(null);
   const [categories, setCategories] = useState<CategoryResponse[]>([]);
   const [selectedCategory, setSelectedCategory] = useState<string | null>(null);
+  // Placa de gesto sobre a foto: some no primeiro swipe ou depois de alguns segundos.
+  const [dica, setDica] = useState(true);
 
   // ── Animation refs ────────────────────────────────────────────────────────
   const position = useRef(new Animated.ValueXY()).current;
+  // Troca de peça: a faixa de informação entra como painel (opacidade + 10dp).
+  const infoAnim = useRef(new Animated.Value(1)).current;
 
   // Mutable refs for PanResponder (avoids stale-closure issues)
   const queueRef = useRef<LookResponse[]>([]);
@@ -57,6 +62,10 @@ export default function FeedScreen(): React.ReactElement {
   const cursorRef = useRef<string | null>(null);
   const hasMoreRef = useRef(true);
   const loadingMoreRef = useRef(false);
+  // Geração do feed: trocar de categoria (ou recarregar) invalida respostas
+  // antigas ainda em voo — sem isso, uma página da categoria anterior que chega
+  // atrasada era anexada à fila da nova.
+  const geracaoRef = useRef(0);
   // Categoria ativa em ref: o panResponder e o refill (advanceQueue) precisam
   // sempre ler o valor atual, não o capturado na criação do callback.
   const selectedCategoryRef = useRef<string | null>(null);
@@ -79,16 +88,18 @@ export default function FeedScreen(): React.ReactElement {
     setError(false);
     cursorRef.current = null;
     hasMoreRef.current = true;
+    const geracao = ++geracaoRef.current;
     try {
       const res = await fetchFeed(null, selectedCategoryRef.current ?? undefined);
+      if (geracao !== geracaoRef.current) return;
       cursorRef.current = res.next_cursor;
       if (!res.next_cursor) hasMoreRef.current = false;
       queueRef.current = res.items;
       setQueue(res.items);
     } catch {
-      setError(true);
+      if (geracao === geracaoRef.current) setError(true);
     } finally {
-      setLoading(false);
+      if (geracao === geracaoRef.current) setLoading(false);
     }
   }, []);
 
@@ -120,15 +131,19 @@ export default function FeedScreen(): React.ReactElement {
     // Prefetch quando a fila afina (o backend já exclui looks vistos).
     if (remaining.length < REFILL_AT && hasMoreRef.current && !loadingMoreRef.current) {
       loadingMoreRef.current = true;
+      const geracao = geracaoRef.current;
       try {
         const res = await fetchFeed(cursorRef.current, selectedCategoryRef.current ?? undefined);
+        if (geracao !== geracaoRef.current) return;
         cursorRef.current = res.next_cursor;
         if (!res.next_cursor || res.items.length === 0) hasMoreRef.current = false;
         const combined = [...queueRef.current, ...res.items];
         queueRef.current = combined;
         setQueue([...combined]);
       } catch {
-        // silencioso: o usuário ainda tem a fila atual; tenta de novo no próximo swipe
+        // Com fila sobrando, silencioso: tenta de novo no próximo swipe. Sem
+        // nada na fila, "você viu todas as peças" seria mentira — é falha.
+        if (geracao === geracaoRef.current && queueRef.current.length === 0) setError(true);
       } finally {
         loadingMoreRef.current = false;
       }
@@ -140,6 +155,7 @@ export default function FeedScreen(): React.ReactElement {
   const handleAction = useCallback(async (type: InteractionType) => {
     if (isAnimating.current || queueRef.current.length === 0) return;
     isAnimating.current = true;
+    setDica(false);
 
     const current = queueRef.current[0];
 
@@ -153,7 +169,10 @@ export default function FeedScreen(): React.ReactElement {
           await sendSwipe(current.id, 'RIGHT');
         } else {
           await saveLook(current.id);
-          await sendSwipe(current.id, 'RIGHT');
+          // O aviso só aparece depois que o servidor confirmou (antes dizia
+          // "Salvo" mesmo quando a chamada falhava).
+          showToast('Salvo nos favoritos');
+          await sendSwipe(current.id, 'RIGHT').catch(() => {});
         }
       } catch {
         showToast('Sem conexão com o servidor');
@@ -161,7 +180,6 @@ export default function FeedScreen(): React.ReactElement {
     })();
 
     if (type === 'save') {
-      showToast('Salvo nos favoritos');
       await advanceQueue();
       return;
     }
@@ -175,6 +193,26 @@ export default function FeedScreen(): React.ReactElement {
   }, [advanceQueue, position, showToast]);
 
   handleActionRef.current = handleAction;
+
+  // ── Adicionar ao carrinho (via ProductDetailSheet) ────────────────────────
+
+  const handleAddToCart = useCallback(async (look: LookResponse) => {
+    try {
+      await addToCart({
+        lookId: look.id,
+        name: look.name,
+        photo: look.photos[0] ?? '',
+        unitPrice: Number(look.price ?? 0),
+        quantity: 1,
+      });
+      // Fecha o sheet: com ele aberto o toast (mesmo com z-index maior) fica
+      // atrás visualmente na área onde os dois se sobrepõem.
+      setDetailLook(null);
+      showToast('Item adicionado ao carrinho!');
+    } catch (e: any) {
+      showToast(mensagemDeErroCarrinho(e));
+    }
+  }, [showToast]);
 
   // ── PanResponder (created once) ───────────────────────────────────────────
 
@@ -215,7 +253,7 @@ export default function FeedScreen(): React.ReactElement {
 
   const rotate = position.x.interpolate({
     inputRange: [-width / 2, 0, width / 2],
-    outputRange: ['-12deg', '0deg', '12deg'],
+    outputRange: ['-6deg', '0deg', '6deg'],
   });
   const likeOpacity = position.x.interpolate({
     inputRange: [0, SWIPE_THRESHOLD],
@@ -229,14 +267,26 @@ export default function FeedScreen(): React.ReactElement {
   });
 
   const current = queue[0];
+  const nomeCategoria = categories.find((c) => c.id === current?.category_id)?.name;
+  const preco = partesDoPreco(current?.price);
+
+  useEffect(() => {
+    infoAnim.setValue(0);
+    Animated.timing(infoAnim, { toValue: 1, duration: 240, useNativeDriver: true }).start();
+  }, [current?.id, infoAnim]);
+
+  useEffect(() => {
+    const t = setTimeout(() => setDica(false), 6000);
+    return () => clearTimeout(t);
+  }, []);
 
   // ── Loading state ─────────────────────────────────────────────────────────
 
   if (loading) {
     return (
       <View className="flex-1 bg-background items-center justify-center">
-        <ActivityIndicator color={colors.brand.DEFAULT} size="large" />
-        <Text className="text-ink-4 mt-3 text-sm">Carregando peças para você...</Text>
+        <ActivityIndicator color={colors.ink.DEFAULT} size="large" />
+        <Text className="text-ink-4 mt-3 text-sm font-sans-medium">Carregando peças...</Text>
       </View>
     );
   }
@@ -245,16 +295,16 @@ export default function FeedScreen(): React.ReactElement {
 
   if (error) {
     return (
-      <View className="flex-1 bg-background items-center justify-center px-10">
-        <View className="w-16 h-16 rounded-full bg-danger/10 items-center justify-center mb-4">
-          <Ionicons name="cloud-offline-outline" size={30} color={colors.danger} />
+      <View className="flex-1 bg-background items-center justify-center px-8">
+        <View className="w-16 h-16 rounded-lg bg-danger items-center justify-center mb-4">
+          <Ionicons name="cloud-offline-outline" size={32} color={colors.white} />
         </View>
-        <Text className="text-ink text-xl font-bold text-center">Não foi possível carregar</Text>
-        <Text className="text-ink-4 text-sm text-center mt-2 leading-6">
-          Verifique sua conexão e se você está logado. O feed precisa do servidor.
+        <Text className="text-ink text-2xl font-display-bold text-center">Não foi possível carregar</Text>
+        <Text className="text-ink-4 text-base text-center mt-2">
+          Verifique a conexão e se você está logado. O feed precisa do servidor.
         </Text>
         <View className="mt-6 self-stretch">
-          <Button variant="primary" label="Tentar de novo" onPress={loadData} />
+          <Button variant="primary" label="Tentar de novo" icon="refresh" onPress={loadData} />
         </View>
       </View>
     );
@@ -264,36 +314,44 @@ export default function FeedScreen(): React.ReactElement {
 
   if (!current) {
     return (
-      <View className="flex-1 bg-background items-center justify-center px-10">
-        <Text className="text-4xl">✨</Text>
-        <Text className="text-ink text-xl font-bold mt-3">Você viu tudo!</Text>
-        <Text className="text-ink-4 text-sm text-center mt-2 leading-6">
-          Não há mais peças novas por agora. Volte mais tarde.
+      <View className="flex-1 bg-background items-center justify-center px-8">
+        <View className="w-16 h-16 rounded-lg bg-ink items-center justify-center mb-4">
+          <Ionicons name="checkmark" size={36} color={colors.signal.DEFAULT} />
+        </View>
+        <Text className="text-ink text-2xl font-display-bold text-center">Você viu todas as peças</Text>
+        <Text className="text-ink-4 text-base text-center mt-2">
+          Não há peças novas por agora. Volte mais tarde ou escolha outra categoria.
         </Text>
         <View className="mt-6 self-stretch">
-          <Button variant="secondary" label="Atualizar" onPress={loadData} />
+          <Button variant="secondary" label="Atualizar" icon="refresh" onPress={loadData} />
         </View>
       </View>
     );
   }
 
   // ── Main feed ─────────────────────────────────────────────────────────────
+  // Uma página de catálogo por peça: cabeçalho de papel com o nome da casa e as
+  // categorias, a foto numa moldura vermelha com o selo de preço pousado no
+  // canto, a legenda (nome em serifa, código de item, categoria) e três fichas
+  // de pedido — passar, curtir, salvar.
 
   return (
     <View className="flex-1 bg-background">
       <StatusBar barStyle="dark-content" backgroundColor={colors.background} />
 
-     {/* Header */}
-      <SafeAreaView>
-        <View className="flex-row items-center justify-between px-5 pt-2 pb-2">
-          <Text className="text-ink text-2xl font-bold tracking-tight">
-            Lookly
-          </Text>
+      {/* Cabeçalho da página */}
+      <SafeAreaView edges={['top']} className="bg-background">
+        <View className="flex-row items-center justify-between px-5 h-16">
+          <View>
+            <Text className="text-ink text-3xl font-display-bold">Lookly</Text>
+          </View>
           <TouchableOpacity
             onPress={() => setDetailLook(current)}
-            className="w-9 h-9 rounded-full bg-surface border border-surface-4 items-center justify-center"
+            accessibilityRole="button"
+            accessibilityLabel="Ver detalhes da peça"
+            className="w-12 h-12 rounded-lg bg-ink items-center justify-center"
           >
-            <Ionicons name="information-circle-outline" size={22} color={colors.ink[4]} />
+            <Ionicons name="information" size={24} color={colors.white} />
           </TouchableOpacity>
         </View>
 
@@ -302,144 +360,132 @@ export default function FeedScreen(): React.ReactElement {
           <ScrollView
             horizontal
             showsHorizontalScrollIndicator={false}
-            contentContainerStyle={{ paddingHorizontal: 20, gap: 8, paddingBottom: 4 }}
+            contentContainerStyle={{ paddingHorizontal: 20, gap: 8, paddingBottom: 12 }}
           >
-            <TouchableOpacity
-              onPress={() => selectCategory(null)}
-              activeOpacity={0.8}
-              className={`px-4 py-2 rounded-full border ${
-                selectedCategory === null ? 'bg-brand border-brand' : 'bg-surface border-surface-4'
-              }`}
-            >
-              <Text className={`text-xs font-bold ${selectedCategory === null ? 'text-white' : 'text-ink-4'}`}>
-                Todas
-              </Text>
-            </TouchableOpacity>
-            {categories.map((cat) => (
-              <TouchableOpacity
-                key={cat.id}
-                onPress={() => selectCategory(cat.slug === selectedCategory ? null : cat.slug)}
-                activeOpacity={0.8}
-                className={`px-4 py-2 rounded-full border ${
-                  selectedCategory === cat.slug ? 'bg-brand border-brand' : 'bg-surface border-surface-4'
-                }`}
-              >
-                <Text className={`text-xs font-bold ${selectedCategory === cat.slug ? 'text-white' : 'text-ink-4'}`}>
-                  {cat.name}
-                </Text>
-              </TouchableOpacity>
-            ))}
+            {[{ id: 'todas', slug: null as string | null, name: 'Todas' }, ...categories].map((cat) => {
+              const ativa = selectedCategory === cat.slug;
+              return (
+                <TouchableOpacity
+                  key={cat.id}
+                  onPress={() => selectCategory(cat.slug === selectedCategory ? null : cat.slug)}
+                  activeOpacity={0.85}
+                  accessibilityRole="button"
+                  accessibilityState={{ selected: ativa }}
+                  className={`min-h-12 px-4 rounded-lg border-2 border-ink justify-center ${ativa ? 'bg-ink' : 'bg-surface'}`}
+                >
+                  <Text className={`text-sm font-sans-bold ${ativa ? 'text-white' : 'text-ink'}`}>
+                    {cat.name}
+                  </Text>
+                </TouchableOpacity>
+              );
+            })}
           </ScrollView>
         )}
+        <View className="h-[5px] border-t-2 border-b border-ink" />
       </SafeAreaView>
 
-      {/* Card area */}
-      <View className="flex-1 items-center justify-center px-3 pb-4">
-
-        {/* Peek card behind — slightly scaled down */}
-        {queue[1]?.photos?.[0] && (
-          <View
-            style={{
-              position: 'absolute',
-              width: width - 24,
-              height: height * 0.70,
-              borderRadius: 22,
-              overflow: 'hidden',
-              top: 8,
-              transform: [{ scale: 0.97 }],
-            }}
-          >
-            <Image
-              source={{ uri: queue[1].photos[0] }}
-              style={{ width: '100%', height: '100%' }}
-              resizeMode="cover"
-            />
-          </View>
-        )}
-
-        {/* Main draggable card */}
-        <Animated.View
-          style={{
-            width: width - 24,
-            height: height * 0.70,
-            borderRadius: 22,
-            overflow: 'hidden',
-            backgroundColor: colors.surface[4],
-            shadowColor: colors.ink.DEFAULT,
-            shadowOpacity: 0.16,
-            shadowRadius: 24,
-            shadowOffset: { width: 0, height: 8 },
-            elevation: 8,
-            transform: [
-              { translateX: position.x },
-              { translateY: position.y },
-              { rotate },
-            ],
-          }}
-          {...panResponder.panHandlers}
-        >
-          <Image
-            source={{ uri: current.photos[0] }}
-            style={{ position: 'absolute', width: '100%', height: '100%' }}
-            resizeMode="cover"
-          />
-
-          {/* Selos de arrasto — a tela anima a opacidade, a aparência mora no componente */}
-          <Animated.View style={{ opacity: likeOpacity }} className="absolute top-11 left-4">
-            <SwipeStamp action="like" />
-          </Animated.View>
-
-          <Animated.View style={{ opacity: skipOpacity }} className="absolute top-11 right-4">
-            <SwipeStamp action="skip" />
-          </Animated.View>
-
-          {/* Info gradient */}
-          <LinearGradient
-            colors={[...PHOTO_SCRIM]}
-            style={{
-              position: 'absolute',
-              bottom: 0,
-              left: 0,
-              right: 0,
-              paddingBottom: 88,
-              paddingHorizontal: 18,
-              paddingTop: 64,
-            }}
-          >
-            <Text className="text-white text-2xl font-bold mb-1">
-              {current.name}
-            </Text>
-            {current.price != null && (
-              // brand-light, não brand: o preço fica sobre o véu escuro da foto
-              <Text className="text-brand-light text-lg font-bold mb-2">
-                {formatarMoeda(current.price, true)}
-              </Text>
-            )}
-            {current.likes_count > 0 && (
-              <View className="flex-row items-center gap-1">
-                <Ionicons name="heart" size={13} color={colors.brand.light} />
-                <Text className="text-white/70 text-xs">
-                  {formatarNumero(current.likes_count)} curtidas
-                </Text>
+      {/* Página: foto emoldurada + selo de preço */}
+      <View className="flex-1 px-4 pt-3">
+        <View className="flex-1 border-2 border-seal p-1 bg-surface">
+          <View className="flex-1 border border-ink overflow-hidden bg-surface-3">
+            {queue[1]?.photos?.[0] && (
+              <View style={{ position: 'absolute', top: 0, right: 0, bottom: 0, left: 0 }}>
+                <PecaFoto uri={queue[1].photos[0]} className="flex-1" />
               </View>
             )}
-          </LinearGradient>
 
-          {/* Ações do swipe */}
-          <View className="absolute right-3.5 bottom-7 gap-3">
-            <SwipeActionButton action="like" onPress={handleAction} />
-            <SwipeActionButton action="skip" onPress={handleAction} />
-            <SwipeActionButton action="save" onPress={handleAction} />
+            <Animated.View
+              style={{
+                position: 'absolute',
+                top: 0,
+                right: 0,
+                bottom: 0,
+                left: 0,
+                backgroundColor: colors.surface[3],
+                transform: [
+                  { translateX: position.x },
+                  { translateY: position.y },
+                  { rotate },
+                ],
+              }}
+              {...panResponder.panHandlers}
+            >
+              <PecaFoto uri={current.photos[0]} className="flex-1" />
+
+              {/* Carimbos de arrasto — a tela anima a opacidade, a aparência mora no componente */}
+              <Animated.View style={{ opacity: likeOpacity }} className="absolute top-6 left-4">
+                <SwipeStamp action="like" />
+              </Animated.View>
+
+              <Animated.View style={{ opacity: skipOpacity }} className="absolute top-6 right-4">
+                <SwipeStamp action="skip" />
+              </Animated.View>
+            </Animated.View>
+
+            {dica && (
+              <View pointerEvents="none" className="absolute bottom-4 left-0 right-0 items-center">
+                <View className="flex-row items-center gap-3 bg-surface border-2 border-ink rounded-lg px-4 min-h-12">
+                  <Ionicons name="arrow-back" size={20} color={colors.ink.DEFAULT} />
+                  <Text className="text-ink text-sm font-sans-bold">Passar</Text>
+                  <View className="w-px h-5 bg-ink" />
+                  <Text className="text-ink text-sm font-sans-bold">Curtir</Text>
+                  <Ionicons name="arrow-forward" size={20} color={colors.seal.DEFAULT} />
+                </View>
+              </View>
+            )}
           </View>
+        </View>
 
-          {/* Swipe-up hint */}
-          <TouchableOpacity
-            className="absolute bottom-2.5 self-center"
-            onPress={() => setDetailLook(current)}
-          >
-            <Text className="text-white/60 text-xs">↑  ver detalhes</Text>
-          </TouchableOpacity>
+        {/* Selo de preço pousado no canto da moldura */}
+        <Animated.View
+          pointerEvents="none"
+          className="absolute -bottom-5 right-6 w-24 h-24 rounded-full bg-seal border-2 border-surface items-center justify-center"
+          style={{ opacity: infoAnim, transform: [{ rotate: '-8deg' }] }}
+        >
+          {preco ? (
+            <>
+              <Text className="text-white text-xs font-sans-semibold">só R$</Text>
+              <Text className="text-white text-xl font-display-black">
+                {preco.inteiro},{preco.centavos}
+              </Text>
+            </>
+          ) : (
+            <Text className="text-white text-sm font-sans-bold text-center px-2">Sob consulta</Text>
+          )}
         </Animated.View>
+      </View>
+
+      {/* Legenda: toque abre o detalhe */}
+      <Animated.View
+        style={{
+          opacity: infoAnim,
+          transform: [{ translateY: infoAnim.interpolate({ inputRange: [0, 1], outputRange: [10, 0] }) }],
+        }}
+      >
+        <TouchableOpacity
+          activeOpacity={0.9}
+          onPress={() => setDetailLook(current)}
+          accessibilityRole="button"
+          accessibilityLabel={`${current.name}. Ver detalhes`}
+          className="px-5 pt-4 pb-2 pr-32"
+        >
+          <Text className="text-ink text-2xl font-display-bold" numberOfLines={2}>
+            {current.name}
+          </Text>
+          <Text className="text-ink-4 text-sm font-mono mt-0.5" numberOfLines={1}>
+            {refDaPeca(current.id)}
+          </Text>
+          <Text className="text-ink-3 text-base font-display-italic" numberOfLines={1}>
+            {[nomeCategoria, contar(current.likes_count, 'curtida', 'curtidas')].filter(Boolean).join(' · ')}
+          </Text>
+        </TouchableOpacity>
+      </Animated.View>
+
+      {/* Fichas de ação */}
+      <View className="flex-row gap-2 px-4 pt-2 pb-3">
+        <SwipeActionButton action="skip" onPress={handleAction} />
+        <SwipeActionButton action="like" onPress={handleAction} />
+        <SwipeActionButton action="save" onPress={handleAction} />
       </View>
 
       <Toast message={toastMsg} visible={toastVisible} />
@@ -451,6 +497,7 @@ export default function FeedScreen(): React.ReactElement {
           setDetailLook(null);
           handleAction('save');
         }}
+        onAddToCart={() => detailLook && handleAddToCart(detailLook)}
       />
     </View>
   );

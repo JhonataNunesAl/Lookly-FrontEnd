@@ -4,13 +4,12 @@ import {
   Alert,
   KeyboardAvoidingView,
   Platform,
-  SafeAreaView,
   ScrollView,
   StatusBar,
-  Text,
   TextInput,
   View,
 } from 'react-native';
+import Text from '../components/Text';
 import { Ionicons } from '@expo/vector-icons';
 import { useNavigation } from '@react-navigation/native';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
@@ -18,6 +17,7 @@ import { colors } from '../theme/colors';
 import { AI_CONSENT_VERSION } from '../types/api';
 import { fetchBodyProfile, updateBodyProfile, grantAiConsent, revokeAiConsent } from '../lib/bodyProfile';
 import Button from '../components/Button';
+import ScreenHeader from '../components/ScreenHeader';
 
 /**
  * "Ajustar Tamanhos e Medidas" — antes um botão sem `onPress`. O recurso já
@@ -104,20 +104,17 @@ export default function BodyProfileScreen(): React.ReactElement {
   if (loading) {
     return (
       <View className="flex-1 bg-background items-center justify-center">
-        <ActivityIndicator color={colors.brand.DEFAULT} size="large" />
+        <ActivityIndicator color={colors.ink.DEFAULT} size="large" />
       </View>
     );
   }
 
   return (
     <View className="flex-1 bg-background">
-      <StatusBar barStyle="dark-content" />
+      <StatusBar barStyle="dark-content" backgroundColor={colors.background} />
       <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : 'height'} className="flex-1">
-        <SafeAreaView className="flex-1">
-          <View className="flex-row items-center px-5 pt-4 pb-2 gap-3">
-            <Button variant="icon" icon="chevron-back" accessibilityLabel="Voltar" onPress={() => navigation.goBack()} />
-            <Text className="text-ink text-xl font-bold tracking-tight">Tamanhos e Medidas</Text>
-          </View>
+        <View className="flex-1">
+          <ScreenHeader title="Tamanhos e Medidas" onBack={() => navigation.goBack()} />
 
           <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={{ paddingHorizontal: 24, paddingBottom: 40 }}>
             <Text className="text-ink-4 text-sm mt-2 mb-6 leading-6">
@@ -127,12 +124,12 @@ export default function BodyProfileScreen(): React.ReactElement {
             <View className="gap-y-5">
               <View className="flex-row gap-x-4">
                 <View className="flex-1">
-                  <Text className="text-ink-5 text-xs font-bold uppercase mb-2 ml-1 tracking-widest">Peso (kg)</Text>
-                  <View className="bg-surface border border-surface-4 rounded-2xl px-4 flex-row items-center h-14">
+                  <Text className="text-ink text-sm font-sans-bold mb-2">Peso (kg)</Text>
+                  <View className="bg-surface border border-b-2 border-surface-5 border-b-ink px-4 flex-row items-center h-14">
                     <TextInput
-                      className="flex-1 text-ink font-medium"
+                      className="flex-1 text-ink font-sans-medium"
                       placeholder="68.5"
-                      placeholderTextColor={colors.ink[6]}
+                      placeholderTextColor={colors.ink[5]}
                       keyboardType="decimal-pad"
                       value={weight}
                       onChangeText={setWeight}
@@ -140,12 +137,12 @@ export default function BodyProfileScreen(): React.ReactElement {
                   </View>
                 </View>
                 <View className="flex-1">
-                  <Text className="text-ink-5 text-xs font-bold uppercase mb-2 ml-1 tracking-widest">Altura (cm)</Text>
-                  <View className="bg-surface border border-surface-4 rounded-2xl px-4 flex-row items-center h-14">
+                  <Text className="text-ink text-sm font-sans-bold mb-2">Altura (cm)</Text>
+                  <View className="bg-surface border border-b-2 border-surface-5 border-b-ink px-4 flex-row items-center h-14">
                     <TextInput
-                      className="flex-1 text-ink font-medium"
+                      className="flex-1 text-ink font-sans-medium"
                       placeholder="170"
-                      placeholderTextColor={colors.ink[6]}
+                      placeholderTextColor={colors.ink[5]}
                       keyboardType="decimal-pad"
                       value={height}
                       onChangeText={setHeight}
@@ -155,14 +152,14 @@ export default function BodyProfileScreen(): React.ReactElement {
               </View>
 
               <View>
-                <Text className="text-ink-5 text-xs font-bold uppercase mb-2 ml-1 tracking-widest">
+                <Text className="text-ink text-sm font-sans-bold mb-2">
                   Medidas (opcional)
                 </Text>
-                <View className="bg-surface border border-surface-4 rounded-3xl px-4 py-3 h-24">
+                <View className="bg-surface border border-b-2 border-surface-5 border-b-ink px-4 py-3 h-24">
                   <TextInput
                     className="text-ink text-sm"
                     placeholder="Ex.: Busto 90cm, Cintura 70cm, Quadril 95cm"
-                    placeholderTextColor={colors.ink[6]}
+                    placeholderTextColor={colors.ink[5]}
                     multiline
                     textAlignVertical="top"
                     value={measurements}
@@ -173,16 +170,16 @@ export default function BodyProfileScreen(): React.ReactElement {
             </View>
 
             <View className="mt-8">
-              <Button variant="primary" label="SALVAR" onPress={handleSave} loading={saving} />
+              <Button variant="primary" label="Salvar" onPress={handleSave} loading={saving} />
             </View>
 
             {/* Consentimento de IA — separado de guardar a medida */}
-            <View className="mt-10 bg-surface border border-surface-4 rounded-card p-5">
+            <View className="mt-10 bg-surface rounded-card border border-surface-5 p-5">
               <View className="flex-row items-center gap-2 mb-2">
-                <Ionicons name="sparkles-outline" size={18} color={colors.brand.DEFAULT} />
-                <Text className="text-ink font-bold">Provador virtual com IA</Text>
+                <Ionicons name="sparkles-outline" size={18} color={colors.ink.DEFAULT} />
+                <Text className="text-ink font-sans-bold">Provador virtual com IA</Text>
               </View>
-              <Text className="text-ink-4 text-xs leading-5 mb-4">
+              <Text className="text-ink-4 text-sm leading-5 mb-4">
                 Opcional e revogável a qualquer momento (LGPD). Sem isso ligado, suas medidas
                 continuam salvas, só não são usadas pra gerar imagens de prova de roupa.
               </Text>
@@ -194,7 +191,7 @@ export default function BodyProfileScreen(): React.ReactElement {
               />
             </View>
           </ScrollView>
-        </SafeAreaView>
+        </View>
       </KeyboardAvoidingView>
     </View>
   );

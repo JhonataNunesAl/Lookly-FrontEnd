@@ -2,15 +2,14 @@ import React, { useState } from 'react';
 import {
   Alert,
   View,
-  Text,
   TextInput,
   TouchableOpacity,
   ScrollView,
-  SafeAreaView,
   StatusBar,
   KeyboardAvoidingView,
   Platform,
 } from 'react-native';
+import Text from '../components/Text';
 import { Ionicons } from '@expo/vector-icons';
 import { useNavigation } from '@react-navigation/native';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
@@ -18,16 +17,18 @@ import { supabase } from '../lib/supabase';
 import { colors } from '../theme/colors';
 import BirthDateInput from '../components/BirthDateInput';
 import { toISODate, isAdult } from '../utils/birthDate';
+import { seedStyles } from '../utils/algorithm';
 import Button from '../components/Button';
+import ScreenHeader from '../components/ScreenHeader';
 
 // Estilos para o usuário escolher no onboarding
 const INITIAL_STYLES = [
-  { id: 'streetwear', label: 'Streetwear', emoji: '🧢' },
-  { id: 'minimalista', label: 'Minimalista', emoji: '◻️' },
-  { id: 'casual', label: 'Casual', emoji: '👟' },
-  { id: 'elegante', label: 'Elegante', emoji: '✨' },
-  { id: 'vintage', label: 'Vintage', emoji: '📷' },
-  { id: 'esportivo', label: 'Esportivo', emoji: '🏃' },
+  { id: 'streetwear', label: 'Streetwear' },
+  { id: 'minimalista', label: 'Minimalista' },
+  { id: 'casual', label: 'Casual' },
+  { id: 'elegante', label: 'Elegante' },
+  { id: 'vintage', label: 'Vintage' },
+  { id: 'esportivo', label: 'Esportivo' },
 ];
 
 export default function RegisterUserScreen(): React.ReactElement {
@@ -113,6 +114,10 @@ const handleRegister = async () => {
       return;
     }
 
+    // O perfil v2 não tem campo de estilos no servidor, então eles semeiam o DNA
+    // de estilo local (o que aparece no Perfil).
+    await seedStyles(selectedStyles).catch(() => {});
+
     // Se a confirmação de e-mail estiver desligada no projeto, já existe sessão
     // e dá para entrar direto — full_name/birth_date/username já foram
     // gravados pelo trigger a partir do `options.data` acima, não precisa de
@@ -137,26 +142,23 @@ const handleRegister = async () => {
 
   return (
     <View className="flex-1 bg-background">
-      <StatusBar barStyle="dark-content" />
+      <StatusBar barStyle="dark-content" backgroundColor={colors.background} />
+
+      <ScreenHeader title="Criar conta" onBack={() => navigation.goBack()} />
 
       <KeyboardAvoidingView 
         behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
         className="flex-1"
       >
-        <SafeAreaView className="flex-1">
+        <View className="flex-1">
           <ScrollView 
             showsVerticalScrollIndicator={false}
             contentContainerStyle={{ paddingHorizontal: 24, paddingBottom: 40 }}
           >
             
-            {/* Header */}
-            <View className="mt-8 mb-10">
-              <TouchableOpacity onPress={() => navigation.goBack()} className="mb-6">
-                <Ionicons name="arrow-back" size={24} color={colors.ink.DEFAULT} />
-              </TouchableOpacity>
-              <Text className="text-ink text-3xl font-bold tracking-tight">Crie sua conta</Text>
-              <Text className="text-ink-4 mt-2">Descubra peças que combinam com você.</Text>
-            </View>
+            <Text className="text-ink text-lg font-sans-semibold mt-6 mb-8">
+              Descubra peças que combinam com você.
+            </Text>
 
             {/* Inputs Principais */}
             <View className="gap-y-5 mb-10">
@@ -207,8 +209,8 @@ const handleRegister = async () => {
 
             {/* Seletor de Estilos (Diferencial Lookly) */}
             <View>
-              <Text className="text-ink font-bold text-lg mb-1">O que você curte?</Text>
-              <Text className="text-ink-5 text-xs mb-5 uppercase tracking-widest">Selecione pelo menos 2</Text>
+              <Text className="text-ink text-xl font-display-bold mb-1">O que você curte?</Text>
+              <Text className="text-ink-3 text-base mb-4">Escolha pelo menos 2 estilos.</Text>
               
               <View className="flex-row flex-wrap gap-3">
                 {INITIAL_STYLES.map((style) => {
@@ -218,12 +220,14 @@ const handleRegister = async () => {
                       key={style.id}
                       onPress={() => toggleStyle(style.id)}
                       activeOpacity={0.7}
-                      className={`flex-row items-center px-5 py-3 rounded-2xl border ${
-                        isSelected ? 'bg-brand border-brand' : 'bg-surface border-surface-4'
+                      accessibilityRole="button"
+                      accessibilityState={{ selected: isSelected }}
+                      className={`flex-row items-center px-4 min-h-12 rounded-card border-2 border-ink ${
+                        isSelected ? 'bg-ink' : 'bg-surface'
                       }`}
                     >
-                      <Text className="mr-2">{style.emoji}</Text>
-                      <Text className={`font-bold text-sm ${isSelected ? 'text-white' : 'text-ink-3'}`}>
+                      {isSelected && <Ionicons name="checkmark" size={18} color={colors.signal.DEFAULT} style={{ marginRight: 6 }} />}
+                      <Text className={`font-sans-bold text-base ${isSelected ? 'text-white' : 'text-ink'}`}>
                         {style.label}
                       </Text>
                     </TouchableOpacity>
@@ -234,18 +238,18 @@ const handleRegister = async () => {
 
             {/* Botão de Finalizar */}
             <View className="mt-12">
-              <Button variant="primary" label="Começar minha jornada" onPress={handleRegister} loading={loading} />
+              <Button variant="primary" label="Criar conta" icon="arrow-forward" onPress={handleRegister} loading={loading} />
             </View>
 
-            <View className="flex-row justify-center mt-6">
-              <Text className="text-ink-5 text-xs">Já tem conta? </Text>
-              <TouchableOpacity onPress={() => navigation.navigate('Login' as never)}>
-                <Text className="text-brand text-xs font-bold">Fazer login</Text>
+            <View className="flex-row justify-center items-center mt-4">
+              <Text className="text-ink-4 text-base">Já tem conta? </Text>
+              <TouchableOpacity onPress={() => navigation.navigate('Login' as never)} accessibilityRole="button" className="min-h-12 justify-center">
+                <Text className="text-ink text-base font-sans-bold underline">Fazer login</Text>
               </TouchableOpacity>
             </View>
 
           </ScrollView>
-        </SafeAreaView>
+        </View>
       </KeyboardAvoidingView>
     </View>
   );
@@ -255,13 +259,13 @@ const handleRegister = async () => {
 function InputField({ label, placeholder, icon, secureTextEntry = false, keyboardType = 'default', autoCapitalize = 'sentences', value, onChange }: any) {
   return (
     <View>
-      <Text className="text-ink-5 text-[10px] font-bold uppercase mb-2 ml-1 tracking-[2px]">{label}</Text>
-      <View className="bg-surface border border-surface-4 rounded-2xl px-4 flex-row items-center h-16">
+      <Text className="text-ink text-sm font-sans-bold mb-2">{label}</Text>
+      <View className="bg-surface border border-b-2 border-surface-5 border-b-ink px-4 flex-row items-center h-16">
         <Ionicons name={icon} size={20} color={colors.ink[5]} />
         <TextInput
           className="flex-1 ml-3 text-ink"
           placeholder={placeholder}
-          placeholderTextColor={colors.ink[6]}
+          placeholderTextColor={colors.ink[5]}
           secureTextEntry={secureTextEntry}
           keyboardType={keyboardType}
           autoCapitalize={autoCapitalize}

@@ -3,21 +3,21 @@ import {
   Alert,
   KeyboardAvoidingView,
   Platform,
-  SafeAreaView,
   StatusBar,
-  Text,
   TextInput,
   TouchableOpacity,
   View,
 } from 'react-native';
+import Text from '../components/Text';
 import { Ionicons } from '@expo/vector-icons';
 import { RouteProp, useNavigation, useRoute } from '@react-navigation/native';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { supabase } from '../lib/supabase';
-import { createStore } from '../lib/sellers';
+import { createStore, submitSellerDocument } from '../lib/sellers';
 import { colors } from '../theme/colors';
 import { RootStackParamList } from '../types';
 import Button from '../components/Button';
+import ScreenHeader from '../components/ScreenHeader';
 
 type ConfirmEmailRoute = RouteProp<RootStackParamList, 'ConfirmEmail'>;
 
@@ -97,6 +97,16 @@ export default function ConfirmEmailScreen(): React.ReactElement {
           navigation.replace('MainUser');
           return;
         }
+        if (params.documentPayload) {
+          try {
+            await submitSellerDocument(params.documentPayload);
+          } catch {
+            Alert.alert(
+              'Loja criada, documento não',
+              'Não foi possível validar o CNPJ agora. Você pode enviá-lo depois, em Perfil > Documento fiscal.',
+            );
+          }
+        }
         navigation.replace('MainBusiness');
         return;
       }
@@ -127,33 +137,27 @@ export default function ConfirmEmailScreen(): React.ReactElement {
 
   return (
     <View className="flex-1 bg-background">
-      <StatusBar barStyle="dark-content" />
-      <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : 'height'} className="flex-1">
-        <SafeAreaView className="flex-1 px-8 justify-center">
-          <View className="absolute top-14 left-6">
-            <Button
-              variant="icon"
-              icon="arrow-back"
-              accessibilityLabel="Voltar"
-              onPress={() => navigation.navigate('Login')}
-            />
-          </View>
+      <StatusBar barStyle="dark-content" backgroundColor={colors.background} />
+      <ScreenHeader title="Confirmar e-mail" onBack={() => navigation.navigate('Login')} />
 
+      <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : 'height'} className="flex-1">
+        <View className="flex-1 px-6 justify-center">
           <View className="items-center mb-10">
-            <View className="w-16 h-16 rounded-full bg-brand/10 items-center justify-center mb-5">
-              <Ionicons name="mail-open-outline" size={28} color={colors.brand.DEFAULT} />
+            <View className="w-16 h-16 rounded-lg bg-ink items-center justify-center mb-5">
+              <Ionicons name="mail-open-outline" size={32} color={colors.signal.DEFAULT} />
             </View>
-            <Text className="text-ink text-2xl font-bold text-center">Confirme seu e-mail</Text>
-            <Text className="text-ink-4 mt-2 text-center px-4">
+            <Text className="text-ink text-2xl font-display-bold text-center">Confirme seu e-mail</Text>
+            <Text className="text-ink-3 text-base mt-2 text-center px-4">
               Enviamos um código de 6 dígitos para{'\n'}
-              <Text className="text-ink font-semibold">{params.email}</Text>
+              <Text className="text-ink font-sans-semibold">{params.email}</Text>
             </Text>
           </View>
 
           <TextInput
-            className="bg-surface border border-surface-4 rounded-2xl h-16 text-center text-ink text-2xl font-black tracking-[8px]"
+            accessibilityLabel="Código de 6 dígitos"
+            className="bg-surface border border-b-2 border-surface-5 border-b-ink h-16 text-center text-ink text-3xl font-display-bold"
             placeholder="000000"
-            placeholderTextColor={colors.ink[6]}
+            placeholderTextColor={colors.ink[5]}
             keyboardType="number-pad"
             maxLength={6}
             value={code}
@@ -161,15 +165,16 @@ export default function ConfirmEmailScreen(): React.ReactElement {
           />
 
           <View className="mt-6">
-            <Button variant="primary" label="CONFIRMAR" onPress={handleConfirm} loading={confirming} />
+            <Button variant="primary" label="Confirmar" icon="arrow-forward" onPress={handleConfirm} loading={confirming} />
           </View>
 
           <TouchableOpacity
             onPress={handleResend}
             disabled={cooldown > 0 || resending}
-            className="mt-6 items-center"
+            accessibilityRole="button"
+            className="mt-4 min-h-12 items-center justify-center"
           >
-            <Text className={`text-sm font-bold ${cooldown > 0 ? 'text-ink-6' : 'text-brand'}`}>
+            <Text className={`text-base font-sans-bold ${cooldown > 0 ? 'text-ink-4' : 'text-ink underline'}`}>
               {resending
                 ? 'Enviando...'
                 : cooldown > 0
@@ -177,7 +182,7 @@ export default function ConfirmEmailScreen(): React.ReactElement {
                   : 'Reenviar código'}
             </Text>
           </TouchableOpacity>
-        </SafeAreaView>
+        </View>
       </KeyboardAvoidingView>
     </View>
   );
