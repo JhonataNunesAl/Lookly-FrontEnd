@@ -12,3 +12,9 @@ export async function updateMyProfile(dados: ProfileUpdate): Promise<ProfileResp
   const { data } = await api.put<ProfileResponse>('/profiles/me', dados);
   return data;
 }
+
+/** Exclui a conta e os dados (e a loja, se houver) — irreversível. O servidor exige a
+ *  palavra de confirmação; 409 quando há pedidos registrados. */
+export async function excluirMinhaConta(): Promise<void> {
+  await api.delete('/profiles/me', { data: { confirmacao: 'EXCLUIR' } });
+}

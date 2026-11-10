@@ -218,6 +218,16 @@ export default function CompanyProfileScreen(): React.ReactElement {
           <View className="mt-4">
             <Button variant="danger" label="Sair da conta" icon="log-out-outline" onPress={handleLogout} />
           </View>
+
+          {/* Excluir conta: separado e discreto, para não ser tocado por engano */}
+          <TouchableOpacity
+            onPress={() => navigation.navigate('ExcluirConta')}
+            accessibilityRole="button"
+            accessibilityLabel="Excluir minha conta"
+            className="min-h-12 items-center justify-center mt-2"
+          >
+            <Text className="text-ink-4 text-base font-sans-semibold underline">Excluir minha conta</Text>
+          </TouchableOpacity>
         </View>
 
       </ScrollView>

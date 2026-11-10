@@ -105,6 +105,7 @@ export type RootStackParamList = {
   BodyProfile: undefined;
   EditStore: { loja: SellerResponse };
   SellerDocument: undefined;
+  ExcluirConta: undefined;
   /** Placeholder pra qualquer funcionalidade planejada mas não implementada
    *  ainda — ver ComingSoonScreen.tsx. `icon` é um nome válido do Ionicons. */
   ComingSoon: { title: string; description: string; icon: string };

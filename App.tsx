@@ -65,7 +65,13 @@ import CatalogTabBar from './src/components/CatalogTabBar';
 import { supabase } from './src/lib/supabase';
 import api from './src/lib/api';
 import { resetProfile } from './src/utils/algorithm';
+import { definirTela, iniciarLogger, registrarErro } from './src/lib/logger';
+import ErrorBoundary from './src/components/ErrorBoundary';
+import ExcluirContaScreen from './src/screens/ExcluirContaScreen';
 import { ProfileResponse } from './src/types/api';
+
+// Captura global de exceções e promises rejeitadas (ver src/lib/logger.ts).
+iniciarLogger();
 
 const navigationRef = createNavigationContainerRef<any>();
 
@@ -87,7 +93,8 @@ async function resolverRotaInicial(): Promise<RotaInicial> {
     if (lembrado === 'MainUser' || lembrado === 'MainBusiness') return lembrado;
     const { data: perfil } = await api.get<ProfileResponse>('/profiles/me');
     return perfil.is_seller ? 'MainBusiness' : 'MainUser';
-  } catch {
+  } catch (e) {
+    registrarErro(e, { origem: 'js', nivel: 'warn', contexto: { etapa: 'rota_inicial' } });
     return 'Login';
   }
 }
@@ -205,6 +212,7 @@ export default function App(): React.ReactElement | null {
   const lembrarPainel = () => {
     const raiz = navigationRef.getRootState();
     const nome = raiz?.routes[raiz.index]?.name;
+    definirTela(navigationRef.getCurrentRoute()?.name ?? nome); // o logger anota em que tela o erro ocorreu
     if (nome === 'MainUser' || nome === 'MainBusiness') {
       AsyncStorage.setItem(PAPEL_KEY, nome).catch(() => {});
     }
@@ -215,6 +223,7 @@ export default function App(): React.ReactElement | null {
   if (!pronto) return null;
 
   return (
+    <ErrorBoundary>
     <SafeAreaProvider>
     <NavigationContainer ref={navigationRef} onStateChange={lembrarPainel} onReady={lembrarPainel}>
       {/* Inicial: Login, ou direto o painel quando já há sessão salva */}
@@ -272,6 +281,11 @@ export default function App(): React.ReactElement | null {
           options={{ animation: 'slide_from_right' }}
         />
         <Stack.Screen
+          name="ExcluirConta"
+          component={ExcluirContaScreen}
+          options={{ animation: 'slide_from_right' }}
+        />
+        <Stack.Screen
           name="ComingSoon"
           component={ComingSoonScreen}
           options={{ animation: 'slide_from_right' }}
@@ -280,5 +294,6 @@ export default function App(): React.ReactElement | null {
       </Stack.Navigator>
     </NavigationContainer>
     </SafeAreaProvider>
+    </ErrorBoundary>
   );
 }

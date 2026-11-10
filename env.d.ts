@@ -8,5 +8,7 @@ declare const process: {
     EXPO_PUBLIC_API_URL?: string;
     EXPO_PUBLIC_SUPABASE_URL?: string;
     EXPO_PUBLIC_SUPABASE_ANON_KEY?: string;
+      /** '1' envia os logs de erro ao servidor também em desenvolvimento (lib/logger.ts). */
+      EXPO_PUBLIC_LOG_REMOTO?: string;
   };
 };

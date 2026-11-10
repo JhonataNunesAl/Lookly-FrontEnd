@@ -1,5 +1,6 @@
 import axios from 'axios';
 import { supabase } from './supabase';
+import { registrarFalhaDeApi } from './logger';
 
 /**
  * Instância axios compartilhada para o backend Lucker.
@@ -11,7 +12,12 @@ import { supabase } from './supabase';
  *   - iOS / web:        http://localhost:8000/api
  *   - Celular (Expo Go): http://<IP-da-maquina>:8000/api
  */
-const baseURL = process.env.EXPO_PUBLIC_API_URL ?? 'http://192.168.15.2:8000/api';
+// Sem a variável: em desenvolvimento cai no IP da máquina de dev; num build de
+// produção (APK/AAB) cai na API publicada — nunca num IP de rede local, que
+// deixaria o app do testador falando com o nada.
+const baseURL =
+  process.env.EXPO_PUBLIC_API_URL ??
+  (__DEV__ ? 'http://192.168.15.2:8000/api' : 'https://lookly-backend-2.onrender.com/api');
 
 const api = axios.create({
   baseURL,
@@ -44,6 +50,7 @@ api.interceptors.response.use(
     if (erro?.response?.status === 401) {
       await supabase.auth.signOut().catch(() => {});
     }
+    registrarFalhaDeApi(erro); // só rede fora do ar e 5xx — ver lib/logger.ts
     return Promise.reject(erro);
   },
 );
