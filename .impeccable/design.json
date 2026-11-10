@@ -1,0 +1,338 @@
+{
+  "schemaVersion": 2,
+  "generatedAt": "2026-11-10T00:00:00Z",
+  "title": "Design System: Lookly",
+  "extensions": {
+    "colorMeta": {
+      "seal-red": {
+        "role": "primary",
+        "displayName": "Catalog Red Seal",
+        "canonical": "#B3261E",
+        "tonalRamp": [
+          "#2E0907",
+          "#5A120E",
+          "#8C1C15",
+          "#B3261E",
+          "#CC5A52",
+          "#DE8F88",
+          "#F1D5CC",
+          "#FAEBE6"
+        ]
+      },
+      "signal-mustard": {
+        "role": "secondary",
+        "displayName": "Signal Mustard",
+        "canonical": "#E3A72F",
+        "tonalRamp": [
+          "#3A2705",
+          "#6B4A0B",
+          "#9C6D12",
+          "#C58E1F",
+          "#E3A72F",
+          "#EBC066",
+          "#F6E2AE",
+          "#FBF1D6"
+        ]
+      },
+      "catalog-paper": {
+        "role": "neutral",
+        "displayName": "Catalog Paper",
+        "canonical": "#F3E9D2",
+        "tonalRamp": [
+          "#5E5230",
+          "#8A7B52",
+          "#A89A70",
+          "#C2B185",
+          "#DACB9F",
+          "#EADDBB",
+          "#F3E9D2",
+          "#FBF5E6"
+        ]
+      },
+      "sheet": {
+        "role": "neutral",
+        "displayName": "Order Sheet",
+        "canonical": "#FBF5E6",
+        "tonalRamp": [
+          "#C2B185",
+          "#DACB9F",
+          "#EADDBB",
+          "#F3E9D2",
+          "#F7EDD6",
+          "#FBF5E6",
+          "#FDF9EE",
+          "#FFFCF5"
+        ]
+      },
+      "ink": {
+        "role": "neutral",
+        "displayName": "Brown Ink",
+        "canonical": "#2B1D12",
+        "tonalRamp": [
+          "#2B1D12",
+          "#3C2A1B",
+          "#503C29",
+          "#614D38",
+          "#705B45",
+          "#A8977C",
+          "#DACB9F",
+          "#F3E9D2"
+        ]
+      },
+      "success": {
+        "role": "semantic",
+        "displayName": "Success Green",
+        "canonical": "#2F6B3C",
+        "tonalRamp": [
+          "#0C2112",
+          "#17391F",
+          "#2F6B3C",
+          "#4F8B5C",
+          "#7BAD86",
+          "#A8CBB0",
+          "#D2E4D6",
+          "#EDF4EF"
+        ]
+      }
+    },
+    "typographyMeta": {
+      "display": {
+        "displayName": "Display",
+        "purpose": "56px wordmark on login."
+      },
+      "display-sm": {
+        "displayName": "Display Small",
+        "purpose": "36px red price on detail sheet and cart total."
+      },
+      "headline": {
+        "displayName": "Headline",
+        "purpose": "Screen titles, piece names, empty states."
+      },
+      "title": {
+        "displayName": "Title",
+        "purpose": "Row names, section headers, leader labels, row prices."
+      },
+      "subtitle": {
+        "displayName": "Subtitle (Italic)",
+        "purpose": "Header subtitles, like counts, descriptions."
+      },
+      "ref": {
+        "displayName": "Item Reference",
+        "purpose": "Typewritten 'Ref. 0001' codes."
+      },
+      "body": {
+        "displayName": "Body",
+        "purpose": "Secondary lines and fields."
+      },
+      "button": {
+        "displayName": "Button",
+        "purpose": "Button and action labels."
+      },
+      "label": {
+        "displayName": "Label",
+        "purpose": "Tab labels, meter values, badges."
+      }
+    },
+    "shadows": [],
+    "motion": [
+      {
+        "name": "press-scale",
+        "value": "scale 0.97, spring speed 40, bounciness 4-6",
+        "purpose": "Button touch feedback."
+      },
+      {
+        "name": "toast-rise",
+        "value": "opacity 220ms + translateY 16px spring (tension 80, friction 10)",
+        "purpose": "Toast entry and exit."
+      },
+      {
+        "name": "seal-fade",
+        "value": "opacity with the info swap, seal rotated -8deg",
+        "purpose": "Price seal appears when the piece changes."
+      }
+    ],
+    "breakpoints": []
+  },
+  "components": [
+    {
+      "name": "Primary Button",
+      "kind": "button",
+      "refersTo": "button-primary",
+      "description": "Ink field with cream label; ink, not red, is the action colour.",
+      "html": "<button class=\"ds-btn\">Adicionar ao carrinho</button>",
+      "css": ".ds-btn { height: 56px; padding: 0 20px; background: #2B1D12; color: #FBF5E6; border: 2px solid #2B1D12; border-radius: 4px; font-family: Hind, sans-serif; font-weight: 700; font-size: 16px; } .ds-btn:hover { background: #3C2A1B; } .ds-btn:active { transform: scale(0.97); } .ds-btn:focus-visible { outline: 3px solid #B3261E; outline-offset: 2px; }"
+    },
+    {
+      "name": "Secondary Button",
+      "kind": "button",
+      "refersTo": "button-secondary",
+      "description": "Sheet field with a 2px ink rule.",
+      "html": "<button class=\"ds-btn-2\">Cancelar</button>",
+      "css": ".ds-btn-2 { height: 56px; padding: 0 20px; background: #FBF5E6; color: #2B1D12; border: 2px solid #2B1D12; border-radius: 4px; font-family: Hind, sans-serif; font-weight: 700; font-size: 16px; } .ds-btn-2:hover { background: #F7EDD6; } .ds-btn-2:active { transform: scale(0.97); } .ds-btn-2:focus-visible { outline: 3px solid #B3261E; outline-offset: 2px; }"
+    },
+    {
+      "name": "Curtir Action Field",
+      "kind": "button",
+      "refersTo": "action-like",
+      "description": "The one red action: solid seal-red field with heart and label.",
+      "html": "<button class=\"ds-like\"><svg width=\"22\" height=\"22\" viewBox=\"0 0 24 24\"><path fill=\"#FBF5E6\" d=\"M12 21s-8-5.2-8-11a4.5 4.5 0 0 1 8-2.8A4.5 4.5 0 0 1 20 10c0 5.8-8 11-8 11z\"/></svg>Curtir</button>",
+      "css": ".ds-like { display: inline-flex; align-items: center; justify-content: center; gap: 8px; height: 56px; width: 120px; background: #B3261E; color: #FBF5E6; border: 2px solid #B3261E; border-radius: 4px; font-family: Hind, sans-serif; font-weight: 700; font-size: 16px; } .ds-like:hover { background: #8C1C15; } .ds-like:active { transform: scale(0.97); } .ds-like:focus-visible { outline: 3px solid #2B1D12; outline-offset: 2px; }"
+    },
+    {
+      "name": "Framed Photo with Price Seal",
+      "kind": "custom",
+      "refersTo": "price-seal",
+      "description": "Photo in a red frame with ink inner line, and the rotated circular red price seal.",
+      "html": "<div class=\"ds-photo\"><div class=\"ds-photo-in\"></div><div class=\"ds-seal\">R$ 189</div></div>",
+      "css": ".ds-photo { position: relative; width: 220px; height: 280px; padding: 4px; border: 2px solid #B3261E; background: #FBF5E6; } .ds-photo-in { height: 100%; border: 1px solid #2B1D12; background: #EADDBB; } .ds-seal { position: absolute; right: 16px; bottom: -20px; width: 96px; height: 96px; border-radius: 50%; background: #B3261E; border: 2px solid #FBF5E6; color: #FBF5E6; display: flex; align-items: center; justify-content: center; font-family: 'DM Serif Display', serif; font-size: 20px; transform: rotate(-8deg); }"
+    },
+    {
+      "name": "Piece Row",
+      "kind": "card",
+      "refersTo": "piece-row",
+      "description": "Catalog entry: framed thumbnail, serif name, typewritten reference, red price under a dotted rule.",
+      "html": "<div class=\"ds-row\"><div class=\"ds-row-ph\"></div><div class=\"ds-row-body\"><div class=\"ds-row-n\">Jaqueta jeans oversized</div><div class=\"ds-row-ref\">Ref. 7F3A</div><div class=\"ds-row-l\">128 curtidas</div><div class=\"ds-row-p\">R$ 189,90</div></div></div>",
+      "css": ".ds-row { display: flex; gap: 12px; width: 340px; padding: 12px; background: #FBF5E6; border: 1px solid #C2B185; border-radius: 4px; } .ds-row-ph { width: 96px; height: 128px; padding: 4px; border: 1px solid #2B1D12; background: #EADDBB; background-clip: content-box; } .ds-row-body { flex: 1; } .ds-row-n { font-family: 'DM Serif Display', serif; font-size: 18px; color: #2B1D12; } .ds-row-ref { font-family: 'Courier Prime', monospace; font-size: 14px; color: #614D38; } .ds-row-l { font-family: 'DM Serif Display', serif; font-style: italic; font-size: 14px; color: #614D38; } .ds-row-p { margin-top: 24px; padding-top: 4px; border-top: 1px dotted #705B45; text-align: right; font-family: 'DM Serif Display', serif; font-size: 24px; color: #B3261E; }"
+    },
+    {
+      "name": "Dotted Leader",
+      "kind": "custom",
+      "refersTo": "piece-row",
+      "description": "Label, dotted rule, serif value.",
+      "html": "<div class=\"ds-lead\"><span class=\"ds-lead-l\">Total</span><span class=\"ds-lead-d\"></span><span class=\"ds-lead-v\">R$ 379,80</span></div>",
+      "css": ".ds-lead { display: flex; align-items: flex-end; width: 320px; min-height: 56px; padding: 8px 0; color: #2B1D12; } .ds-lead-l { font-family: 'DM Serif Display', serif; font-size: 20px; } .ds-lead-d { flex: 1; margin: 0 8px 8px; border-bottom: 1px dotted #705B45; } .ds-lead-v { font-family: 'DM Serif Display', serif; font-size: 36px; line-height: 40px; color: #B3261E; font-variant-numeric: tabular-nums; }"
+    },
+    {
+      "name": "Screen Header",
+      "kind": "nav",
+      "refersTo": "button-icon",
+      "description": "Serif title on paper, ink back square, closed by the double ink rule.",
+      "html": "<header class=\"ds-head\"><button class=\"ds-back\" aria-label=\"Voltar\"><svg width=\"22\" height=\"22\" viewBox=\"0 0 24 24\"><path fill=\"none\" stroke=\"#FBF5E6\" stroke-width=\"2.5\" d=\"M20 12H4m6-6-6 6 6 6\"/></svg></button><div><div class=\"ds-head-t\">Carrinho</div><div class=\"ds-head-s\">2 peças</div></div></header><div class=\"ds-rule\"></div>",
+      "css": ".ds-head { display: flex; align-items: center; gap: 12px; width: 340px; min-height: 64px; padding: 8px 16px; background: #F3E9D2; } .ds-back { width: 48px; height: 48px; border: 2px solid #2B1D12; border-radius: 4px; background: #2B1D12; display: inline-flex; align-items: center; justify-content: center; } .ds-head-t { font-family: 'DM Serif Display', serif; font-size: 24px; color: #2B1D12; } .ds-head-s { font-family: 'DM Serif Display', serif; font-style: italic; font-size: 16px; color: #503C29; } .ds-rule { width: 340px; height: 5px; border-top: 2px solid #2B1D12; border-bottom: 1px solid #2B1D12; box-sizing: border-box; }"
+    },
+    {
+      "name": "Category Index",
+      "kind": "chip",
+      "refersTo": "chip",
+      "description": "Not a button: serif words in a row. Inactive is italic ink-3; the active entry is bold red and underlined (navigation state, like the active tab).",
+      "html": "<nav class=\"ds-idx\"><span class=\"ds-idx-i on\">Todas</span><span class=\"ds-idx-i\">Gótica</span><span class=\"ds-idx-i\">Vintage</span></nav>",
+      "css": ".ds-idx { display: flex; gap: 22px; padding: 0 20px; background: #FBF5E6; border-bottom: 1px solid #C2B185; } .ds-idx-i { min-height: 48px; display: inline-flex; align-items: center; font-family: \"DM Serif Display\", Georgia, serif; font-style: italic; font-size: 18px; color: #503C29; } .ds-idx-i.on { font-style: normal; font-weight: 700; color: #B3261E; text-decoration: underline; }"
+    },
+    {
+      "name": "Text Field",
+      "kind": "input",
+      "refersTo": "field",
+      "description": "Fill-in line: sheet fill, 1px paper-5 hairline, 2px ink underline, square corners, 56dp. Form version adds a serif label and an italic hint.",
+      "html": "<input class=\"ds-field\" placeholder=\"Procurar uma peça\">",
+      "css": ".ds-field { height: 56px; padding: 0 12px; background: #FBF5E6; border: 1px solid #C2B185; border-bottom: 2px solid #2B1D12; border-radius: 0; font-family: Hind, sans-serif; font-weight: 500; font-size: 16px; color: #2B1D12; } .ds-field::placeholder { color: #705B45; } .ds-field:focus-visible { outline: 3px solid #B3261E; outline-offset: 2px; }"
+    },
+    {
+      "name": "Tab Bar",
+      "kind": "nav",
+      "refersTo": "tab-bar",
+      "description": "Paper bar with an ink top rule and one red bar that slides to the active tab; craft-object icons (book, book+magnifier, price tag, comp card), red when active.",
+      "html": "<nav class=\"ds-tab\"><a class=\"ds-tab-i on\"><i class=\"ds-mark\"></i>Catálogo</a><a class=\"ds-tab-i\"><i class=\"ds-mark\"></i>Busca</a><a class=\"ds-tab-i\"><i class=\"ds-mark\"></i>Salvos</a></nav>",
+      "css": ".ds-tab { display: flex; justify-content: center; gap: 8px; width: 360px; padding: 6px 0 10px; background: #FBF5E6; border-top: 2px solid #2B1D12; font-family: Hind, sans-serif; box-sizing: border-box; } .ds-tab-i { display: flex; flex-direction: column; align-items: center; gap: 4px; width: 80px; font-size: 12px; font-weight: 500; color: #614D38; } .ds-tab-i.on { color: #B3261E; font-weight: 700; } .ds-mark { width: 40px; height: 4px; background: transparent; } .ds-tab-i.on .ds-mark { background: #B3261E; }"
+    },
+    {
+      "name": "Swipe Stamp",
+      "kind": "custom",
+      "refersTo": "action-like",
+      "description": "Rotated double-frame rubber stamp shown while dragging the card.",
+      "html": "<div class=\"ds-stamp\"><div class=\"ds-stamp-in\">CURTIR</div></div>",
+      "css": ".ds-stamp { display: inline-block; padding: 4px 12px; background: rgba(251,245,230,0.9); border: 4px solid #B3261E; border-radius: 4px; transform: rotate(-8deg); } .ds-stamp-in { padding: 0 8px; border: 1.5px solid #B3261E; border-radius: 2px; font-family: 'DM Serif Display', serif; font-size: 30px; color: #B3261E; }"
+    },
+    {
+      "name": "Filter Sheet",
+      "kind": "component",
+      "refersTo": "FiltroSheet",
+      "description": "Modal ficha: serif title, double ink rule, sections with a red rule, radio rows, size chips in Courier Prime Bold (selected = ink), fixed Limpar/Aplicar footer.",
+      "html": "<div class=\"ds-fs\"><h3>Filtrar peças</h3><p>2 filtros marcados</p><div class=\"ds-fs-row\"><i class=\"ds-r on\"></i><b>Mais recentes</b></div><div class=\"ds-fs-chips\"><span class=\"ds-sz on\">M</span><span class=\"ds-sz on\">G</span><span class=\"ds-sz\">GG</span></div></div>",
+      "css": ".ds-fs { width: 360px; background: #F3E9D2; border-top: 2px solid #2B1D12; padding: 12px 16px; font-family: Hind, sans-serif; color: #2B1D12; } .ds-fs h3 { margin: 0; font: 24px \"DM Serif Display\", Georgia, serif; } .ds-fs p { margin: 0 0 8px; font: italic 16px \"DM Serif Display\", Georgia, serif; color: #503C29; } .ds-fs-row { display: flex; align-items: center; gap: 12px; min-height: 56px; border-bottom: 1px dotted #705B45; } .ds-r { width: 20px; height: 20px; border: 2px solid #705B45; border-radius: 50%; } .ds-r.on { border-color: #B3261E; box-shadow: inset 0 0 0 4px #F3E9D2, inset 0 0 0 10px #B3261E; } .ds-fs-chips { display: flex; gap: 8px; margin-top: 12px; } .ds-sz { min-width: 48px; min-height: 48px; display: inline-flex; align-items: center; justify-content: center; background: #FBF5E6; border: 1px solid #C2B185; font: 700 16px \"Courier Prime\", monospace; color: #503C29; } .ds-sz.on { background: #2B1D12; border: 2px solid #2B1D12; color: #FBF5E6; }"
+    }
+  ],
+  "narrative": {
+    "northStar": "Catálogo vintage de loja",
+    "overview": "The app is paged like a 1960s-70s mail-order store catalog. Cream paper carries brown ink; a single catalog red works as the printer's seal on price, photo frame and active state. Each piece is a catalog entry: a framed photograph, a serif name, a typewritten item reference (\"Ref. 0001\"), a price. Everything is Portuguese copy in sentence case.\n\nDensity is moderate and page-like: one entry per screen in the feed, one entry per row elsewhere, never a product grid. Hierarchy comes from the serif display face against small Hind labels, and from rules (a double ink rule under headers, dotted leaders between label and value) rather than from boxes and shadows. Corners are nearly square, as on printed stock.",
+    "keyCharacteristics": [
+      "Paper and ink first; red is a seal, not a button colour.",
+      "Photo sits in a red frame; the price sits in a rotated red circular seal.",
+      "Rules, not shadows: double ink rule under headers, dotted leaders for label-to-value.",
+      "Serif display face for titles, names and every number that matters.",
+      "Item references set in typewriter Courier Prime.",
+      "Status is icon plus text, never colour alone."
+    ],
+    "rules": [
+      {
+        "name": "The Red Is A Seal Rule",
+        "body": "Red marks price, photo frame, active state and the single main action (curtir). Buttons and selection are ink, never red; the only red buttons are curtir and destructive.",
+        "section": "colors"
+      },
+      {
+        "name": "The Mustard On Ink Rule",
+        "body": "Mustard appears only on dark ink; never as text or fill on paper.",
+        "section": "colors"
+      },
+      {
+        "name": "The Display Face Carries Numbers Rule",
+        "body": "Prices, totals, quantities and key figures are set in DM Serif Display (tabular-nums where aligned), not Hind.",
+        "section": "typography"
+      },
+      {
+        "name": "The Family-Per-Weight Rule",
+        "body": "React Native does not synthesise weight for custom fonts: use font-sans-*, font-display-*, font-mono*, never font-bold.",
+        "section": "typography"
+      },
+      {
+        "name": "The Font Class Order Rule",
+        "body": "Tailwind orders font-* utilities by class name, so font-sans would beat font-display-*. Text therefore adds font-sans only when no font-* class is present; always import Text from src/components/Text.tsx.",
+        "section": "typography"
+      },
+      {
+        "name": "The Rule Not Shadow Rule",
+        "body": "Surfaces are separated by paper tone and printed rules, not by shadow.",
+        "section": "elevation"
+      },
+      {
+        "name": "The Dotted Leader Rule",
+        "body": "Label and value are joined by a dotted rule (ink-5), value in the serif face.",
+        "section": "components"
+      },
+      {
+        "name": "The Framed Photo Rule",
+        "body": "The garment photo sits in a red frame with an ink inner line and is never tinted.",
+        "section": "components"
+      },
+      {
+        "name": "The Ink Buttons Rule",
+        "body": "Buttons and selection are brown ink with cream labels; red is reserved for curtir and destructive actions.",
+        "section": "components"
+      }
+    ],
+    "dos": [
+      "Do use red (#B3261E) only for price, photo frame, active state, the curtir action and section rules.",
+      "Do make every other action an ink element with a sheet label; 48dp minimum, 56dp for primary fields.",
+      "Do set prices and key figures in DM Serif Display with lining numerals.",
+      "Do close each page header with the double ink rule.",
+      "Do connect label and value with a dotted leader.",
+      "Do frame the garment photo in red and show it untinted.",
+      "Do use the tokens in tailwind.config.js, mirrored in src/theme/colors.ts, and the Text component.",
+      "Do pair every status colour with an icon and text.",
+      "Do write form fields as fill-in lines (Campo), and filters as a text index, not a row of bordered buttons.",
+      "Do show only real numbers in the store panel; say what is not measured yet.",
+      "Do filter on the server and keep the draft in the sheet until \"Aplicar\"."
+    ],
+    "donts": [
+      "Don't make a red button other than curtir and destructive actions, or show selection in red.",
+      "Don't put mustard on paper.",
+      "Don't use pure white; light text on ink or red is the sheet cream (#FBF5E6).",
+      "Don't use ink-6 (#A8977C) for text.",
+      "Don't use font-bold, font-black on Hind or mix font-sans with another font-* class.",
+      "Don't add shadows, large radii or pill shapes.",
+      "Don't return to a product grid or a row of metric cards.",
+      "Don't rely on colour alone for state.",
+      "Don't box inputs in 2px ink borders or make filters look like a button bar: both read as an AI template.",
+      "Don't use generic Ionicons for the tab bar; keep the catalog-object glyphs."
+    ]
+  }
+}
