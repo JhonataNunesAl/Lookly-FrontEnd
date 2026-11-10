@@ -53,3 +53,13 @@ export const getTopCategories = (profile: UserProfile): CategoryStat[] => {
     .sort((a, b) => b[1] - a[1])
     .map(([cat, val]) => ({ cat, pct: Math.round((val / total) * 100) }));
 };
+
+/** Os estilos escolhidos no cadastro viram o ponto de partida do DNA de estilo
+ *  (antes eram pedidos ao usuário, "para personalizar o feed", e jogados fora). */
+export const seedStyles = async (styles: string[]): Promise<void> => {
+  const profile = await getProfile();
+  styles.forEach((style) => {
+    profile.scores.tags[style] = (profile.scores.tags[style] ?? 0) + 1;
+  });
+  await AsyncStorage.setItem(PROFILE_KEY, JSON.stringify(profile));
+};

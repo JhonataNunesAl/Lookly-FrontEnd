@@ -1,4 +1,5 @@
 import api from './api';
+import { FILTROS_VAZIOS, FiltrosBusca, filtrosParaParams } from './filtros';
 import {
   SellerCreate,
   SellerUpdate,
@@ -7,6 +8,9 @@ import {
   DocumentInput,
   DocumentVerifyResponse,
   FeedResponse,
+  LookResponse,
+  LookCreate,
+  LookUpdate,
 } from '../types/api';
 
 /** Vira vendedor — mesma chamada usada pelo cadastro de empresa, aqui
@@ -64,16 +68,70 @@ export async function fetchSellerLooks(sellerId: string, cursor?: string | null)
   return data;
 }
 
+/** Todos os looks da MINHA loja, qualquer status (ativos, esgotados, em
+ *  revisão) — usado pela tela de gestão de catálogo/estoque. Diferente de
+ *  `fetchSellerLooks`, que é a vitrine pública (só `status='active'`). */
+export async function fetchMyLooks(cursor?: string | null): Promise<FeedResponse> {
+  const params: Record<string, string> = {};
+  if (cursor) params.cursor = cursor;
+  const { data } = await api.get<FeedResponse>('/looks/mine', { params });
+  return data;
+}
+
+/** Ajusta só o estoque de um look já publicado. */
+export async function updateLookStock(lookId: string, stock_quantity: number): Promise<LookResponse> {
+  const { data } = await api.put<LookResponse>(`/looks/${lookId}`, { stock_quantity });
+  return data;
+}
+
 /** Busca de looks por texto/categoria (fora do feed — não exclui já vistos). */
 export async function searchLooks(
   q?: string,
   category?: string,
   cursor?: string | null,
+  filtros: FiltrosBusca = FILTROS_VAZIOS,
 ): Promise<FeedResponse> {
-  const params: Record<string, string> = {};
+  const params: Record<string, string | boolean | string[]> = { ...filtrosParaParams(filtros) };
   if (q) params.q = q;
   if (category) params.category = category;
   if (cursor) params.cursor = cursor;
-  const { data } = await api.get<FeedResponse>('/looks/search', { params });
+  const { data } = await api.get<FeedResponse>('/looks/search', {
+    params,
+    // `sizes=P&sizes=M` (o FastAPI não entende o `sizes[]=P` padrão do axios)
+    paramsSerializer: { indexes: null },
+  });
   return data;
+}
+
+/** Publica uma peça nova (só quem tem loja). Exige categoria e 1–6 fotos já enviadas
+ *  (ver `lib/media.ts`). */
+export async function createLook(dados: LookCreate): Promise<LookResponse> {
+  const { data } = await api.post<LookResponse>('/looks', dados);
+  return data;
+}
+
+/** Edita uma peça da minha loja (nome, preço, fotos, categoria, estoque...). */
+export async function updateLook(lookId: string, dados: LookUpdate): Promise<LookResponse> {
+  const { data } = await api.put<LookResponse>(`/looks/${lookId}`, dados);
+  return data;
+}
+
+/** Remove uma peça da minha loja. */
+export async function deleteLook(lookId: string): Promise<void> {
+  await api.delete(`/looks/${lookId}`);
+}
+
+/** Todas as peças da minha loja (junta as páginas de `/looks/mine`). Usado pelo
+ *  painel e pelos insights, que somam sobre o catálogo inteiro. Teto de 10
+ *  páginas (500 peças) para não pendurar a tela numa loja gigante. */
+export async function fetchTodosMeusLooks(): Promise<LookResponse[]> {
+  const todos: LookResponse[] = [];
+  let cursor: string | null = null;
+  for (let pagina = 0; pagina < 10; pagina++) {
+    const res: FeedResponse = await fetchMyLooks(cursor);
+    todos.push(...res.items);
+    if (!res.next_cursor) break;
+    cursor = res.next_cursor;
+  }
+  return todos;
 }

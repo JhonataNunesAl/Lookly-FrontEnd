@@ -77,7 +77,7 @@ export interface CategoryStat {
 // então as abas de empresa (Dashboard/Catalogo/Insights) não eram tipadas e o
 // TS não pôde acusar quando "Perfil" apontou para a tela errada.
 
-import type { SellerCreate, SellerResponse } from './api';
+import type { SellerCreate, SellerResponse, DocumentInput, LookResponse } from './api';
 
 /** Stack raiz (App.tsx): auth + os dois dashboards + modais. */
 export type RootStackParamList = {
@@ -91,10 +91,13 @@ export type RootStackParamList = {
     email: string;
     onConfirmedNavigateTo: 'MainUser' | 'MainBusiness';
     sellerPayload?: SellerCreate;
+    /** CNPJ digitado no cadastro da empresa — enviado depois da loja criada. */
+    documentPayload?: DocumentInput;
   };
   MainUser: undefined;
   MainBusiness: undefined;
-  AddProduct: undefined;
+  /** Sem `look` = peça nova; com `look` = editar a peça (PUT /looks/{id}). */
+  AddProduct: { look?: LookResponse } | undefined;
   Carrinho: undefined;
   Pedidos: undefined;
   CreateStore: undefined;

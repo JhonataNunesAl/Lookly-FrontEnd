@@ -154,6 +154,11 @@ export interface LookResponse {
   videos: string[];
   price: Decimal | null;
   buy_link: string | null;
+  /** Saldo disponível, por produto (sem variantes de tamanho/cor). */
+  stock_quantity: number;
+  /** Tamanhos disponíveis (ver utils/tamanhos.ts). Vazio = não informado; ausente
+   *  em respostas de um back-end anterior ao filtro de tamanho. */
+  sizes?: string[];
   likes_count: number;
   saves_count: number;
   status: string;
@@ -170,6 +175,10 @@ export interface LookCreate {
   description?: string;
   price?: number;
   buy_link?: string;
+  /** Default 0 no backend se omitido. */
+  stock_quantity?: number;
+  /** Subconjunto de utils/tamanhos.ts. */
+  sizes?: string[];
 }
 
 export type LookUpdate = Partial<LookCreate>;
