@@ -21,9 +21,10 @@ const baseURL =
 
 const api = axios.create({
   baseURL,
-  // O Render (plano grátis) dorme e leva 15-50s para acordar: com 10s o primeiro
-  // login depois de um tempo parado sempre falhava com "sem conexão".
-  timeout: 40000,
+  // O Render (plano grátis) dorme e, medido em 2026-11, leva de 52s a 63s para acordar: com
+  // 10s (e depois 40s) a primeira chamada depois de um tempo parado falhava com "sem conexão".
+  // 90s cobre o pior caso medido com folga; `aquecerServidor()` evita esperar tudo isso.
+  timeout: 90000,
   headers: {
     'Content-Type': 'application/json',
     Accept: 'application/json',
@@ -54,5 +55,17 @@ api.interceptors.response.use(
     return Promise.reject(erro);
   },
 );
+
+/**
+ * Acorda o servidor assim que o app abre. No plano grátis do Render a instância dorme
+ * quando fica ociosa e a primeira requisição espera ~50s; disparando `GET /` (rota sem
+ * banco) logo na abertura, o servidor acorda enquanto a pessoa ainda está na tela de
+ * login, e o primeiro pedido de verdade já encontra tudo de pé. Fire-and-forget: usa o
+ * axios puro (sem token, sem o interceptor que desloga, sem o logger) e nunca lança.
+ */
+export function aquecerServidor(): void {
+  const raiz = baseURL.replace(/\/api\/?$/, '');
+  axios.get(`${raiz}/`, { timeout: 90000 }).catch(() => {});
+}
 
 export default api;

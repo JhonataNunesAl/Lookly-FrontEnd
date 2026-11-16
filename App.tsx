@@ -63,7 +63,7 @@ import { UserTabParamList, BusinessTabParamList } from './src/types';
 import { colors } from './src/theme/colors';
 import CatalogTabBar from './src/components/CatalogTabBar';
 import { supabase } from './src/lib/supabase';
-import api from './src/lib/api';
+import api, { aquecerServidor } from './src/lib/api';
 import { resetProfile } from './src/utils/algorithm';
 import { definirTela, iniciarLogger, registrarErro } from './src/lib/logger';
 import ErrorBoundary from './src/components/ErrorBoundary';
@@ -72,6 +72,8 @@ import { ProfileResponse } from './src/types/api';
 
 // Captura global de exceções e promises rejeitadas (ver src/lib/logger.ts).
 iniciarLogger();
+// Acorda o servidor (Render grátis dorme) enquanto a pessoa ainda está no login.
+aquecerServidor();
 
 const navigationRef = createNavigationContainerRef<any>();
 
