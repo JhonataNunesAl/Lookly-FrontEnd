@@ -68,11 +68,18 @@ const handleRegister = async () => {
 
   try {
     // 1. Cria a conta no Supabase Auth (o trigger do backend gera o `profiles`).
-    const { data, error } = await supabase.auth.signUp({
-      email: email.trim(),
-      password,
-      options: { data: { birth_date: birthDate } },
-    });
+    //    Se uma tentativa anterior criou a conta mas a loja falhou (ex.: nome já em uso), a
+    //    sessão desse e-mail ainda existe: reaproveita, em vez de cadastrar de novo — o que
+    //    daria "e-mail já cadastrado" e deixaria a pessoa sem como terminar a loja aqui.
+    const { data: atual } = await supabase.auth.getSession();
+    const reaproveitar = atual.session?.user.email?.toLowerCase() === email.trim().toLowerCase();
+    const { data, error } = reaproveitar
+      ? { data: { session: atual.session }, error: null }
+      : await supabase.auth.signUp({
+          email: email.trim(),
+          password,
+          options: { data: { birth_date: birthDate } },
+        });
 
     if (error) {
       const msg = /already registered/i.test(error.message)
@@ -127,7 +134,9 @@ const handleRegister = async () => {
     const detail = error?.response?.data?.detail;
     const msg = Array.isArray(detail)
       ? detail[0]?.msg
-      : detail || 'Não foi possível concluir o cadastro da loja.';
+      : typeof detail === 'string' && /slug/i.test(detail)
+        ? 'Já existe uma loja com esse nome. Escolha outro nome para a sua loja e toque em cadastrar de novo.'
+        : detail || 'Não foi possível concluir o cadastro da loja.';
     Alert.alert('Ops!', msg);
   } finally {
     setLoading(false);
