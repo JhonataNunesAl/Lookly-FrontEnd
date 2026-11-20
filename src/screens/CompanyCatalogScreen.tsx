@@ -9,6 +9,7 @@ import {
   Alert,
   ActivityIndicator,
   RefreshControl,
+  ScrollView,
 } from 'react-native';
 import Text from '../components/Text';
 import { Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
@@ -18,8 +19,8 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { colors } from '../theme/colors';
 import { deleteLook } from '../lib/sellers';
 import { fetchCategories } from '../lib/categories';
-import { alterarStatusPeca, fetchItensEstoque, mensagemDeErro } from '../lib/inventory';
-import { CategoryResponse, ItemEstoque, LookResponse, MovimentoCreate, OrdemEstoque, SituacaoEstoque } from '../types/api';
+import { alterarStatusPeca, fetchColecoes, fetchItensEstoque, mensagemDeErro } from '../lib/inventory';
+import { CategoryResponse, ColecaoLoja, ItemEstoque, LookResponse, MovimentoCreate, OrdemEstoque, SituacaoEstoque } from '../types/api';
 import { contar, formatarMoeda } from '../utils/format';
 import { ORDENS, SITUACOES, rotuloCondicao } from '../utils/estoque';
 import { ESTOQUE_BAIXO } from '../utils/loja';
@@ -27,6 +28,7 @@ import Button from '../components/Button';
 import PecaFoto from '../components/PecaFoto';
 import MovimentoSheet from '../components/MovimentoSheet';
 import { refDaPeca } from '../components/PecaRow';
+import { ColecoesDaPecaSheet, ColecoesSheet } from '../components/ColecoesSheets';
 
 const STATUS_ROTULO: Record<string, string> = {
   draft: 'Pausada (fora do feed)',
@@ -56,7 +58,12 @@ export default function CompanyCatalogScreen(): React.ReactElement {
   const [situacao, setSituacao] = useState<SituacaoEstoque>('todos');
   const [categoria, setCategoria] = useState<string | null>(null);
   const [ordem, setOrdem] = useState<OrdemEstoque>('recentes');
-  const [ordemAberta, setOrdemAberta] = useState(false);
+  const [colecao, setColecao] = useState<string | null>(null);
+  const [colecoes, setColecoes] = useState<ColecaoLoja[]>([]);
+  const [carregandoColecoes, setCarregandoColecoes] = useState(false);
+  // Qual ficha de filtro está aberta (uma por vez).
+  const [ficha, setFicha] = useState<'ordem' | 'categoria' | 'colecao' | null>(null);
+  const [colecoesDe, setColecoesDe] = useState<ItemEstoque | null>(null);
 
   const [movimentando, setMovimentando] = useState<LookResponse | null>(null);
   const [tipoInicial, setTipoInicial] = useState<MovimentoCreate['kind']>('venda_externa');
@@ -77,7 +84,9 @@ export default function CompanyCatalogScreen(): React.ReactElement {
     if (!silencioso) setLoading(true);
     setError(false);
     try {
-      const res = await fetchItensEstoque({ q: buscaAplicada, situacao, categoryId: categoria, sort: ordem });
+      const res = await fetchItensEstoque({
+        q: buscaAplicada, situacao, categoryId: categoria, colecaoId: colecao, sort: ordem,
+      });
       if (meu !== pedidoRef.current) return; // resposta antiga de um filtro já trocado
       setItens(res.items);
       setCounts(res.counts);
@@ -91,9 +100,21 @@ export default function CompanyCatalogScreen(): React.ReactElement {
         setAtualizando(false);
       }
     }
-  }, [buscaAplicada, situacao, categoria, ordem]);
+  }, [buscaAplicada, situacao, categoria, colecao, ordem]);
+
+  const carregarColecoes = useCallback(async () => {
+    setCarregandoColecoes(true);
+    try {
+      setColecoes(await fetchColecoes());
+    } catch {
+      // sem coleções: o filtro só mostra "Todas"
+    } finally {
+      setCarregandoColecoes(false);
+    }
+  }, []);
 
   useFocusEffect(useCallback(() => { load(itens.length > 0); }, [load])); // eslint-disable-line react-hooks/exhaustive-deps
+  useFocusEffect(useCallback(() => { carregarColecoes(); }, [carregarColecoes]));
 
   useEffect(() => {
     fetchCategories().then(setCategorias).catch(() => {});
@@ -105,7 +126,7 @@ export default function CompanyCatalogScreen(): React.ReactElement {
     const meu = pedidoRef.current;
     try {
       const res = await fetchItensEstoque({
-        q: buscaAplicada, situacao, categoryId: categoria, sort: ordem, offset: offsetRef.current,
+        q: buscaAplicada, situacao, categoryId: categoria, colecaoId: colecao, sort: ordem, offset: offsetRef.current,
       });
       if (meu !== pedidoRef.current) return;
       offsetRef.current = res.next_offset;
@@ -115,7 +136,7 @@ export default function CompanyCatalogScreen(): React.ReactElement {
     } finally {
       carregandoMaisRef.current = false;
     }
-  }, [buscaAplicada, situacao, categoria, ordem]);
+  }, [buscaAplicada, situacao, categoria, colecao, ordem]);
 
   /** Depois de uma movimentação: atualiza a peça na lista e as contagens. */
   const aposMudanca = () => load(true);
@@ -160,6 +181,8 @@ export default function CompanyCatalogScreen(): React.ReactElement {
     );
   };
 
+  const nomeColecao: Record<string, string> = Object.fromEntries(colecoes.map((c) => [c.id, c.name]));
+
   const renderItem = ({ item }: { item: ItemEstoque }) => {
     const rotuloStatus = STATUS_ROTULO[item.status];
     const reservado = item.reserved_quantity ?? 0;
@@ -167,6 +190,7 @@ export default function CompanyCatalogScreen(): React.ReactElement {
     const corEstoque = item.stock_quantity <= 0 ? colors.danger : disp <= ESTOQUE_BAIXO ? colors.warning : colors.success;
     const condicao = rotuloCondicao(item.condition);
     const parado = item.status === 'active' && item.stock_quantity > 0 && (item.days_without_sale ?? 0) >= 30;
+    const nomesColecoes = (item.collection_ids ?? []).map((id) => nomeColecao[id]).filter(Boolean);
 
     return (
       <View className="bg-surface rounded-card border border-surface-5 p-3 mb-3">
@@ -211,6 +235,14 @@ export default function CompanyCatalogScreen(): React.ReactElement {
                 : 'Nenhuma venda ainda'}
               {parado ? ` · ${item.days_without_sale} dias parada` : ''}
             </Text>
+            {nomesColecoes.length > 0 ? (
+              <View className="flex-row items-center mt-1 gap-1.5">
+                <MaterialCommunityIcons name="folder-outline" size={16} color={colors.ink[4]} />
+                <Text className="flex-1 text-ink-4 text-sm font-sans-semibold" numberOfLines={1}>
+                  {nomesColecoes.join(' · ')}
+                </Text>
+              </View>
+            ) : null}
           </View>
         </View>
 
@@ -254,8 +286,27 @@ export default function CompanyCatalogScreen(): React.ReactElement {
     );
   };
 
-  const opcoesCategoria = [{ id: null as string | null, name: 'Todas' }, ...categorias];
+  const opcoesCategoria = [{ id: null as string | null, name: 'Todas as categorias' }, ...categorias];
   const rotuloOrdem = ORDENS.find((o) => o.id === ordem)?.rotulo ?? '';
+  const rotuloCategoria = categorias.find((c) => c.id === categoria)?.name ?? null;
+  const rotuloColecao = colecoes.find((c) => c.id === colecao)?.name ?? null;
+  const rotuloSituacao = SITUACOES.find((x) => x.id === situacao)?.rotulo ?? '';
+  const filtrosAtivos = [
+    situacao !== 'todos' ? rotuloSituacao : null,
+    categoria ? rotuloCategoria : null,
+    colecao ? rotuloColecao : null,
+    buscaAplicada ? `“${buscaAplicada}”` : null,
+  ].filter(Boolean) as string[];
+  // Busca, categoria e coleção recortam também as contagens dos chips.
+  const recorte = !!(buscaAplicada || categoria || colecao);
+  const semNenhumaPeca = counts.todos === 0 && !recorte;
+  const limparFiltros = () => {
+    setSituacao('todos');
+    setCategoria(null);
+    setColecao(null);
+    setBusca('');
+    setBuscaAplicada('');
+  };
 
   return (
     <View className="flex-1 bg-background">
@@ -267,7 +318,13 @@ export default function CompanyCatalogScreen(): React.ReactElement {
           <View className="flex-1">
             <Text className="text-ink text-3xl font-display-bold">Estoque</Text>
             <Text className="text-ink-3 text-base font-display-italic">
-              {counts.todos != null ? contar(counts.todos, 'peça cadastrada', 'peças cadastradas') : 'Suas peças'}
+              {counts.todos == null
+                ? 'Suas peças'
+                : colecao && rotuloColecao
+                  ? `${contar(counts.todos, 'peça', 'peças')} em “${rotuloColecao}”`
+                  : recorte
+                    ? contar(counts.todos, 'peça neste filtro', 'peças neste filtro')
+                    : contar(counts.todos, 'peça cadastrada', 'peças cadastradas')}
             </Text>
           </View>
           <Button
@@ -317,73 +374,63 @@ export default function CompanyCatalogScreen(): React.ReactElement {
         )}
       </View>
 
-      {/* Situação (com contagem) */}
-      <View>
-        <FlatList
-          horizontal
-          data={SITUACOES}
-          keyExtractor={(s) => s.id}
-          showsHorizontalScrollIndicator={false}
-          contentContainerStyle={{ paddingHorizontal: 16, paddingTop: 10, gap: 8 }}
-          renderItem={({ item: s }) => {
-            const ativa = situacao === s.id;
-            const n = counts[s.id];
-            return (
-              <TouchableOpacity
-                onPress={() => setSituacao(s.id)}
-                accessibilityRole="button"
-                accessibilityState={{ selected: ativa }}
-                className={`min-h-11 px-3 flex-row items-center gap-1.5 ${ativa ? 'bg-ink border-2 border-ink' : 'bg-surface border border-surface-5'}`}
-              >
-                <Text className={`text-sm ${ativa ? 'text-white font-sans-bold' : 'text-ink-3 font-sans-semibold'}`}>{s.rotulo}</Text>
-                {n != null ? (
-                  <Text className={`text-sm font-sans-bold ${ativa ? 'text-signal' : 'text-ink-4'}`}>{n}</Text>
-                ) : null}
-              </TouchableOpacity>
-            );
-          }}
-        />
+      {/* Situação (com contagem): quebra em linhas, então sempre cabe na tela */}
+      <View className="flex-row flex-wrap px-4 pt-2.5 gap-2">
+        {SITUACOES.map((s) => {
+          const ativa = situacao === s.id;
+          const n = counts[s.id];
+          return (
+            <TouchableOpacity
+              key={s.id}
+              onPress={() => setSituacao(s.id)}
+              accessibilityRole="button"
+              accessibilityState={{ selected: ativa }}
+              className={`min-h-11 px-3 flex-row items-center gap-1.5 ${ativa ? 'bg-ink border-2 border-ink' : 'bg-surface border border-surface-5'}`}
+            >
+              <Text className={`text-sm ${ativa ? 'text-white font-sans-bold' : 'text-ink-3 font-sans-semibold'}`}>{s.rotulo}</Text>
+              {n != null ? (
+                <Text className={`text-sm font-sans-bold ${ativa ? 'text-signal' : 'text-ink-4'}`}>{n}</Text>
+              ) : null}
+            </TouchableOpacity>
+          );
+        })}
       </View>
 
-      {/* Categoria + ordem */}
-      <View className="flex-row items-center">
-        {categorias.length > 0 ? (
-          <FlatList
-            horizontal
-            data={opcoesCategoria}
-            keyExtractor={(c) => c.id ?? 'todas'}
-            showsHorizontalScrollIndicator={false}
-            className="flex-1"
-            contentContainerStyle={{ paddingHorizontal: 20, gap: 18 }}
-            renderItem={({ item: c }) => {
-              const ativa = categoria === c.id;
-              return (
-                <TouchableOpacity
-                  onPress={() => setCategoria(c.id)}
-                  accessibilityRole="button"
-                  accessibilityState={{ selected: ativa }}
-                  className="min-h-12 justify-center"
-                >
-                  <Text
-                    className={`text-base ${ativa ? 'text-seal font-display-bold' : 'text-ink-3 font-display-italic'}`}
-                    style={ativa ? { textDecorationLine: 'underline', textDecorationColor: colors.seal.DEFAULT } : undefined}
-                  >
-                    {c.name}
-                  </Text>
-                </TouchableOpacity>
-              );
-            }}
-          />
-        ) : <View className="flex-1" />}
-        <TouchableOpacity
-          onPress={() => setOrdemAberta(true)}
-          accessibilityRole="button"
-          accessibilityLabel={`Ordenar: ${rotuloOrdem}`}
-          className="min-h-12 px-4 flex-row items-center gap-1 border-l border-surface-5"
-        >
-          <MaterialCommunityIcons name="sort" size={20} color={colors.ink.DEFAULT} />
-          <Text className="text-ink text-sm font-sans-bold">Ordenar</Text>
-        </TouchableOpacity>
+      {/* Categoria, coleção e ordem: cada um abre uma ficha com a lista inteira */}
+      <View className="flex-row flex-wrap px-4 pt-2 pb-1 gap-2">
+        {[
+          {
+            id: 'categoria' as const,
+            icone: 'shape-outline' as const,
+            rotulo: categoria ? (rotuloCategoria ?? 'Categoria') : 'Categoria',
+            ativo: !!categoria,
+          },
+          {
+            id: 'colecao' as const,
+            icone: 'folder-outline' as const,
+            rotulo: colecao ? (rotuloColecao ?? 'Coleção') : 'Coleções',
+            ativo: !!colecao,
+          },
+          { id: 'ordem' as const, icone: 'sort' as const, rotulo: rotuloOrdem, ativo: false },
+        ].map((b) => (
+          <TouchableOpacity
+            key={b.id}
+            onPress={() => setFicha(b.id)}
+            accessibilityRole="button"
+            accessibilityLabel={b.id === 'ordem' ? `Ordenar: ${rotuloOrdem}` : b.id === 'categoria' ? `Categoria: ${b.rotulo}` : `Coleção: ${b.rotulo}`}
+            className={`min-h-11 px-3 flex-row items-center gap-1.5 border ${b.ativo ? 'border-seal bg-surface border-2' : 'border-surface-5 bg-surface'}`}
+            style={{ maxWidth: '100%' }}
+          >
+            <MaterialCommunityIcons name={b.icone} size={18} color={b.ativo ? colors.seal.DEFAULT : colors.ink.DEFAULT} />
+            <Text
+              className={`text-sm font-sans-bold flex-shrink ${b.ativo ? 'text-seal' : 'text-ink'}`}
+              numberOfLines={1}
+            >
+              {b.rotulo}
+            </Text>
+            <MaterialCommunityIcons name="chevron-down" size={18} color={b.ativo ? colors.seal.DEFAULT : colors.ink[4]} />
+          </TouchableOpacity>
+        ))}
       </View>
 
       {/* Lista */}
@@ -411,7 +458,7 @@ export default function CompanyCatalogScreen(): React.ReactElement {
           onEndReachedThreshold={0.4}
           refreshControl={<RefreshControl refreshing={atualizando} onRefresh={() => { setAtualizando(true); load(true); }} />}
           ListHeaderComponent={
-            total > itens.length || situacao !== 'todos' || buscaAplicada || categoria ? (
+            total > itens.length || filtrosAtivos.length > 0 ? (
               <Text className="text-ink-4 text-sm font-display-italic mb-2">
                 {contar(total, 'peça encontrada', 'peças encontradas')} · {rotuloOrdem.toLowerCase()}
               </Text>
@@ -424,12 +471,21 @@ export default function CompanyCatalogScreen(): React.ReactElement {
         <View className="flex-1 items-center justify-center px-8">
           <MaterialCommunityIcons name="hanger" size={56} color={colors.ink[5]} />
           <Text className="text-ink text-xl font-display-bold text-center mt-3">
-            {counts.todos === 0 ? 'Nenhuma peça cadastrada ainda' : 'Nenhuma peça aqui'}
+            {semNenhumaPeca ? 'Nenhuma peça cadastrada ainda' : 'Nenhuma peça com esse filtro'}
           </Text>
           <Text className="text-ink-4 text-base font-display-italic text-center mt-1">
-            {counts.todos === 0 ? 'Cadastre a primeira, ou traga o estoque todo de uma planilha.' : 'Tente outra busca, situação ou categoria.'}
+            {semNenhumaPeca
+              ? 'Cadastre a primeira, ou traga o estoque todo de uma planilha.'
+              : filtrosAtivos.length > 0
+                ? `Filtrando por: ${filtrosAtivos.join(' · ')}.`
+                : 'Tente outra busca, situação ou categoria.'}
           </Text>
-          {counts.todos === 0 && (
+          {!semNenhumaPeca && filtrosAtivos.length > 0 ? (
+            <View className="mt-5 self-stretch">
+              <Button variant="secondary" label="Limpar filtros e ver todas" icon="close-circle-outline" onPress={limparFiltros} />
+            </View>
+          ) : null}
+          {semNenhumaPeca && (
             <View className="mt-6 self-stretch">
               <Button variant="primary" label="Cadastrar peça" icon="add" onPress={() => navigation.navigate('AddProduct')} />
               <View className="mt-2">
@@ -445,26 +501,64 @@ export default function CompanyCatalogScreen(): React.ReactElement {
         </View>
       )}
 
-      {/* Ordenar */}
-      <Modal visible={ordemAberta} transparent animationType="fade" onRequestClose={() => setOrdemAberta(false)}>
-        <TouchableOpacity activeOpacity={1} onPress={() => setOrdemAberta(false)} className="flex-1 bg-black/60 justify-end">
-          <View className="bg-background rounded-t-card border-t-2 border-ink p-4 pb-8">
-            <Text className="text-ink text-xl font-display-bold mb-2 px-1">Ordenar por</Text>
-            {ORDENS.map((o) => (
-              <TouchableOpacity
-                key={o.id}
-                onPress={() => { setOrdem(o.id as OrdemEstoque); setOrdemAberta(false); }}
-                accessibilityRole="button"
-                accessibilityState={{ selected: ordem === o.id }}
-                className="min-h-12 flex-row items-center px-1 border-b border-dotted border-ink-5"
-              >
-                <Text className={`flex-1 text-base ${ordem === o.id ? 'text-seal font-sans-bold' : 'text-ink font-sans-medium'}`}>{o.rotulo}</Text>
-                {ordem === o.id ? <Ionicons name="checkmark" size={20} color={colors.seal.DEFAULT} /> : null}
-              </TouchableOpacity>
-            ))}
+      {/* Ordenar / Categoria */}
+      <Modal
+        visible={ficha === 'ordem' || ficha === 'categoria'}
+        transparent
+        animationType="fade"
+        onRequestClose={() => setFicha(null)}
+      >
+        <View className="flex-1 bg-black/60 justify-end">
+          <TouchableOpacity activeOpacity={1} onPress={() => setFicha(null)} accessible={false} className="flex-1" />
+          <View className="bg-background rounded-t-card border-t-2 border-ink p-4 pb-8" style={{ maxHeight: '80%' }}>
+            <Text className="text-ink text-xl font-display-bold mb-2 px-1">
+              {ficha === 'categoria' ? 'Categoria' : 'Ordenar por'}
+            </Text>
+            <ScrollView>
+              {(ficha === 'categoria'
+                ? opcoesCategoria.map((c) => ({ id: c.id, rotulo: c.name }))
+                : ORDENS.map((o) => ({ id: o.id as string | null, rotulo: o.rotulo }))
+              ).map((o) => {
+                const ativa = ficha === 'categoria' ? categoria === o.id : ordem === o.id;
+                return (
+                  <TouchableOpacity
+                    key={o.id ?? 'todas'}
+                    onPress={() => {
+                      if (ficha === 'categoria') setCategoria(o.id);
+                      else setOrdem(o.id as OrdemEstoque);
+                      setFicha(null);
+                    }}
+                    accessibilityRole="button"
+                    accessibilityState={{ selected: ativa }}
+                    className="min-h-12 flex-row items-center px-1 border-b border-dotted border-ink-5"
+                  >
+                    <Text className={`flex-1 text-base ${ativa ? 'text-seal font-sans-bold' : 'text-ink font-sans-medium'}`}>{o.rotulo}</Text>
+                    {ativa ? <Ionicons name="checkmark" size={20} color={colors.seal.DEFAULT} /> : null}
+                  </TouchableOpacity>
+                );
+              })}
+            </ScrollView>
           </View>
-        </TouchableOpacity>
+        </View>
       </Modal>
+
+      <ColecoesSheet
+        visible={ficha === 'colecao'}
+        colecoes={colecoes}
+        carregando={carregandoColecoes}
+        selecionada={colecao}
+        onEscolher={(id) => { setColecao(id); setFicha(null); }}
+        onMudou={() => { carregarColecoes(); load(true); }}
+        onClose={() => setFicha(null)}
+      />
+
+      <ColecoesDaPecaSheet
+        peca={colecoesDe}
+        colecoes={colecoes}
+        onCriada={carregarColecoes}
+        onClose={() => setColecoesDe(null)}
+        onSalvo={() => { setColecoesDe(null); carregarColecoes(); load(true); }}
+      />
 
       {/* Mais ações */}
       <Modal visible={!!menuDe} transparent animationType="fade" onRequestClose={() => setMenuDe(null)}>
@@ -481,6 +575,11 @@ export default function CompanyCatalogScreen(): React.ReactElement {
                 { icone: 'counter', rotulo: 'Corrigir contagem', acao: () => abrirMovimento(menuDe, 'ajuste') },
                 { icone: 'package-variant-remove', rotulo: 'Perda ou avaria', acao: () => abrirMovimento(menuDe, 'perda') },
                 { icone: 'keyboard-return', rotulo: 'Devolução', acao: () => abrirMovimento(menuDe, 'devolucao') },
+                {
+                  icone: 'folder-multiple-outline',
+                  rotulo: 'Coleções',
+                  acao: () => { const m = menuDe; setMenuDe(null); setColecoesDe(m); },
+                },
                 {
                   icone: 'history',
                   rotulo: 'Histórico da peça',

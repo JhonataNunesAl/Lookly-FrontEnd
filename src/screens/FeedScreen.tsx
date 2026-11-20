@@ -12,9 +12,9 @@ import {
   Dimensions,
   ActivityIndicator,
   StatusBar,
-  ScrollView,
 } from 'react-native';
 import Text from '../components/Text';
+import RolagemHorizontal from '../components/RolagemHorizontal';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { InteractionType } from '../types';
 import { LookResponse, CategoryResponse } from '../types/api';
@@ -357,9 +357,7 @@ export default function FeedScreen(): React.ReactElement {
 
         {/* Categorias reais (GET /api/categories) — filtro opcional do feed */}
         {categories.length > 0 && (
-          <ScrollView
-            horizontal
-            showsHorizontalScrollIndicator={false}
+          <RolagemHorizontal
             contentContainerStyle={{ paddingHorizontal: 20, gap: 8, paddingBottom: 12 }}
           >
             {[{ id: 'todas', slug: null as string | null, name: 'Todas' }, ...categories].map((cat) => {
@@ -379,7 +377,7 @@ export default function FeedScreen(): React.ReactElement {
                 </TouchableOpacity>
               );
             })}
-          </ScrollView>
+          </RolagemHorizontal>
         )}
         <View className="h-[5px] border-t-2 border-b border-ink" />
       </SafeAreaView>
