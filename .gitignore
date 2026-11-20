@@ -18,3 +18,6 @@ skills-lock.json
 # Sessões do agent-device e logs locais
 .agent-device/
 *.log
+
+# build web (expo export)
+dist/
