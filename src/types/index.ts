@@ -111,6 +111,10 @@ export type RootStackParamList = {
   /** Placeholder pra qualquer funcionalidade planejada mas não implementada
    *  ainda — ver ComingSoonScreen.tsx. `icon` é um nome válido do Ionicons. */
   ComingSoon: { title: string; description: string; icon: string };
+  /** Pedidos pagos no app para separar e enviar (área da loja). */
+  Vendas: undefined;
+  /** Histórico de estoque; com `lookId`, só o de uma peça. `kind` filtra o tipo. */
+  HistoricoEstoque: { lookId?: string; nome?: string; kind?: string } | undefined;
 };
 
 /** Abas do comprador. */
