@@ -267,6 +267,19 @@ export interface ItemEstoque extends LookResponse {
   revenue: Decimal;
   last_sale_at: ISODateTime | null;
   days_without_sale: number | null;
+  /** Coleções da loja em que a peça está. Ausente em back-end antigo. */
+  collection_ids?: UUID[];
+}
+
+/** Coleção da loja: conjunto de peças com nome livre ("Roupas sessão de carnaval"). */
+export interface ColecaoLoja {
+  id: UUID;
+  name: string;
+  description: string | null;
+  sort_order: number;
+  item_count: number;
+  covers: string[];
+  created_at: ISODateTime | null;
 }
 
 export interface ItensEstoqueResponse {
