@@ -7,6 +7,7 @@ import Text from '../components/Text';
 import Button from '../components/Button';
 import ScreenHeader from '../components/ScreenHeader';
 import { StatBoard } from '../components/PanelKit';
+import TutorialImportacao from '../components/TutorialImportacao';
 import { colors } from '../theme/colors';
 import { contar } from '../utils/format';
 import {
@@ -49,6 +50,7 @@ export default function ImportProductsScreen(): React.ReactElement {
   const [falhasDeFoto, setFalhasDeFoto] = useState<string[]>([]);
   const [semFoto, setSemFoto] = useState<{ linha: number; arquivos: string[] }[]>([]);
   const [exportando, setExportando] = useState(false);
+  const [tutorial, setTutorial] = useState(false);
 
   const fotosCitadas = previa?.arquivos_de_foto ?? [];
   const fotosEncontradas = fotosCitadas.filter((n) => imagens[chaveDeArquivo(n)]);
@@ -180,11 +182,25 @@ export default function ImportProductsScreen(): React.ReactElement {
         title="Importar planilha"
         subtitle="Cadastre ou atualize muitas peças de uma vez"
         onBack={etapa === 'gravando' ? undefined : () => navigation.goBack()}
+        right={
+          etapa === 'gravando' ? undefined : (
+            <Button variant="icon" icon="help-circle-outline" accessibilityLabel="Como funciona a importação" onPress={() => setTutorial(true)} />
+          )
+        }
       />
+      <TutorialImportacao visivel={tutorial} aoFechar={() => setTutorial(false)} />
 
       <ScrollView contentContainerStyle={{ padding: 16, paddingBottom: 48, gap: 16 }} showsVerticalScrollIndicator={false}>
         {etapa === 'inicio' && (
           <>
+            <TouchableOpacity
+              onPress={() => setTutorial(true)}
+              accessibilityRole="button"
+              className="flex-row items-center gap-2 min-h-12"
+            >
+              <MaterialCommunityIcons name="help-circle-outline" size={22} color={colors.ink.DEFAULT} />
+              <Text className="text-ink text-base font-sans-bold underline">Primeira vez? Veja como funciona</Text>
+            </TouchableOpacity>
             <Passo numero="1" titulo="Baixe o modelo">
               <Text className="text-ink-3 text-base">
                 Uma peça por linha: nome, categoria, preço, estoque, tamanhos e fotos. A planilha já vem com
