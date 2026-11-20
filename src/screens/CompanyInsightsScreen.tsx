@@ -13,20 +13,21 @@ import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { colors } from '../theme/colors';
 import { MeterBar, SectionHeader, StatBoard } from '../components/PanelKit';
 import Button from '../components/Button';
-import { CategoryResponse, LookResponse } from '../types/api';
+import { CategoryResponse, LookResponse, Metricas } from '../types/api';
 import { fetchTodosMeusLooks } from '../lib/sellers';
+import { fetchMetricas, Periodo } from '../lib/inventory';
+import PainelVendas, { SeletorPeriodo } from '../components/PainelVendas';
 import { fetchCategories } from '../lib/categories';
 import { contar, formatarNumero } from '../utils/format';
 import { interessePorCategoria, maisEngajadas, resumirLoja } from '../utils/loja';
 
 /**
- * Insights da marca — "o que o público está procurando e o que vale rever".
+ * Insights da marca — "quanto vendi, o que gira, o que está parado e o que o
+ * público procura".
  *
- * Calculado sobre o catálogo real (`GET /looks/mine`): curtidas e salvos de cada
- * peça. Visualizações (impressões) e vendas ainda não são expostas pelo backend,
- * então não há "taxa de curtida" nem receita — um percentual sobre um
- * denominador que não existe seria inventado. O que dá para medir de verdade é a
- * intenção: de cada 100 curtidas, quantas viraram salvos (o gesto de quem quer comprar).
+ * Vendas, lucro, giro e visualizações vêm de `GET /inventory/metrics` (pedidos
+ * pagos no app + vendas registradas fora dele). O interesse (curtidas e salvos)
+ * continua calculado sobre o catálogo (`GET /looks/mine`).
  */
 export default function CompanyInsightsScreen(): React.ReactElement {
   const navigation = useNavigation<NativeStackNavigationProp<any>>();
@@ -34,20 +35,40 @@ export default function CompanyInsightsScreen(): React.ReactElement {
   const [categorias, setCategorias] = useState<CategoryResponse[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(false);
+  const [periodo, setPeriodo] = useState<Periodo>(30);
+  const [metricas, setMetricas] = useState<Metricas | null>(null);
+  const [carregandoMetricas, setCarregandoMetricas] = useState(false);
 
   const load = useCallback(async () => {
     setLoading(true);
     setError(false);
     try {
-      const [ps, cs] = await Promise.all([fetchTodosMeusLooks(), fetchCategories().catch(() => [] as CategoryResponse[])]);
+      const [ps, cs, m] = await Promise.all([
+        fetchTodosMeusLooks(),
+        fetchCategories().catch(() => [] as CategoryResponse[]),
+        fetchMetricas(periodo).catch(() => null),
+      ]);
       setLooks(ps);
       setCategorias(cs);
+      setMetricas(m);
     } catch {
       setError(true);
     } finally {
       setLoading(false);
     }
-  }, []);
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps
+
+  const trocarPeriodo = async (p: Periodo) => {
+    setPeriodo(p);
+    setCarregandoMetricas(true);
+    try {
+      setMetricas(await fetchMetricas(p));
+    } catch {
+      // mantém o período anterior na tela
+    } finally {
+      setCarregandoMetricas(false);
+    }
+  };
 
   useFocusEffect(useCallback(() => { load(); }, [load]));
 
@@ -68,7 +89,7 @@ export default function CompanyInsightsScreen(): React.ReactElement {
         <SafeAreaView edges={['top']} className="bg-background">
           <View className="px-5 pt-3 pb-3">
             <Text className="text-ink text-3xl font-display-bold">Insights</Text>
-            <Text className="text-ink-3 text-base font-display-italic">O que o público procura nas suas peças</Text>
+            <Text className="text-ink-3 text-base font-display-italic">Vendas, giro do estoque e o que o público procura</Text>
           </View>
           <View className="h-[5px] border-t-2 border-b border-ink" />
         </SafeAreaView>
@@ -100,7 +121,26 @@ export default function CompanyInsightsScreen(): React.ReactElement {
           </View>
         ) : (
           <>
+            {/* ── Vendas, lucro e giro (GET /inventory/metrics) ── */}
+            <View className="mt-4">
+              <SeletorPeriodo valor={periodo} onChange={trocarPeriodo} />
+            </View>
+            {carregandoMetricas ? (
+              <View className="py-10 items-center">
+                <ActivityIndicator color={colors.ink.DEFAULT} />
+              </View>
+            ) : metricas ? (
+              <PainelVendas m={metricas} />
+            ) : (
+              <Text className="text-ink-4 text-base font-display-italic px-5 mt-3">
+                Não foi possível carregar as vendas agora. Puxe para atualizar mais tarde.
+              </Text>
+            )}
+
             {/* ── Interesse: curtidas, salvos e a intenção de compra ── */}
+            <View className="mt-8">
+              <SectionHeader title="Interesse do público" />
+            </View>
             <View className="bg-ink px-5 py-2">
               <StatBoard
                 items={[
@@ -194,12 +234,6 @@ export default function CompanyInsightsScreen(): React.ReactElement {
               </View>
             </View>
 
-            <View className="mt-6 mx-4 border border-dashed border-ink-5 bg-surface-2 rounded-card p-4 flex-row gap-3">
-              <MaterialCommunityIcons name="eye-outline" size={26} color={colors.ink[4]} />
-              <Text className="flex-1 text-ink-4 text-sm font-display-italic">
-                Visualizações e vendas por peça entram aqui quando o backend passar a registrá-las. Hoje só curtidas e salvos são reais.
-              </Text>
-            </View>
           </>
         )}
       </ScrollView>

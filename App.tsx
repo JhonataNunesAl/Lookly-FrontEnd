@@ -66,6 +66,8 @@ import AddProductScreen from './src/screens/AddProductScreen';
 import CompanyCatalogScreen from './src/screens/CompanyCatalogScreen';
 import CompanyInsightsScreen from './src/screens/CompanyInsightsScreen';
 import CompanyProfileScreen from './src/screens/CompanyProfileScreen';
+import VendasScreen from './src/screens/VendasScreen';
+import HistoricoEstoqueScreen from './src/screens/HistoricoEstoqueScreen';
 
 import { UserTabParamList, BusinessTabParamList } from './src/types';
 import { colors } from './src/theme/colors';
@@ -170,7 +172,7 @@ function BusinessTabs() {
   return (
     <BusinessTab.Navigator screenOptions={tabOptions} tabBar={(props) => <CatalogTabBar {...props} />}>
       <BusinessTab.Screen name="Dashboard" component={CompanyDashboardScreen} options={{ tabBarIcon: ({ focused }) => <TabIcon glifo={{ ativo: 'storefront', inativo: 'storefront-outline' }} label="Início" focused={focused} /> }} />
-      <BusinessTab.Screen name="Catalogo" component={CompanyCatalogScreen} options={{ tabBarIcon: ({ focused }) => <TabIcon glifo={{ ativo: 'hanger', inativo: 'hanger' }} label="Itens" focused={focused} /> }} />
+      <BusinessTab.Screen name="Catalogo" component={CompanyCatalogScreen} options={{ tabBarIcon: ({ focused }) => <TabIcon glifo={{ ativo: 'hanger', inativo: 'hanger' }} label="Estoque" focused={focused} /> }} />
       <BusinessTab.Screen name="Insights" component={CompanyInsightsScreen} options={{ tabBarIcon: ({ focused }) => <TabIcon glifo={{ ativo: 'abacus', inativo: 'abacus' }} label="Insights" focused={focused} /> }} />
       <BusinessTab.Screen name="Perfil" component={CompanyProfileScreen} options={{ tabBarIcon: ({ focused }) => <TabIcon glifo={{ ativo: 'stamper', inativo: 'stamper' }} label="Marca" focused={focused} /> }} />
     </BusinessTab.Navigator>
@@ -316,6 +318,8 @@ export default function App(): React.ReactElement | null {
           component={ExcluirContaScreen}
           options={{ animation: 'slide_from_right' }}
         />
+        <Stack.Screen name="Vendas" component={VendasScreen} />
+        <Stack.Screen name="HistoricoEstoque" component={HistoricoEstoqueScreen} />
         <Stack.Screen
           name="ComingSoon"
           component={ComingSoonScreen}
