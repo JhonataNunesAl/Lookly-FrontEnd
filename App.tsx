@@ -1,4 +1,5 @@
 import './global.css';
+import './src/lib/alertWeb';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import React, { useEffect, useState } from 'react';
 import AsyncStorage from '@react-native-async-storage/async-storage';
