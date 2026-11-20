@@ -98,6 +98,8 @@ export type RootStackParamList = {
   MainBusiness: undefined;
   /** Sem `look` = peça nova; com `look` = editar a peça (PUT /looks/{id}). */
   AddProduct: { look?: LookResponse } | undefined;
+  /** Importar/exportar peças em massa por planilha (CSV/XLSX). */
+  ImportProducts: undefined;
   Carrinho: undefined;
   Pedidos: undefined;
   CreateStore: undefined;

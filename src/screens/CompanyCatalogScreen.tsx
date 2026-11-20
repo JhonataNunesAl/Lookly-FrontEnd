@@ -219,6 +219,12 @@ export default function CompanyCatalogScreen(): React.ReactElement {
           </View>
           <Button
             variant="icon"
+            icon="cloud-upload-outline"
+            accessibilityLabel="Importar ou exportar planilha de peças"
+            onPress={() => navigation.navigate('ImportProducts')}
+          />
+          <Button
+            variant="icon"
             icon="add"
             accessibilityLabel="Publicar nova peça"
             onPress={() => navigation.navigate('AddProduct')}
@@ -316,11 +322,19 @@ export default function CompanyCatalogScreen(): React.ReactElement {
             {looks.length === 0 ? 'Nenhuma peça publicada ainda' : 'Nenhuma peça encontrada'}
           </Text>
           <Text className="text-ink-4 text-base font-display-italic text-center mt-1">
-            {looks.length === 0 ? 'Publique a primeira e ela entra no feed.' : 'Tente ajustar a busca ou a categoria.'}
+            {looks.length === 0 ? 'Publique a primeira, ou traga o estoque todo de uma planilha.' : 'Tente ajustar a busca ou a categoria.'}
           </Text>
           {looks.length === 0 && (
             <View className="mt-6 self-stretch">
               <Button variant="primary" label="Publicar peça" icon="add" onPress={() => navigation.navigate('AddProduct')} />
+              <View className="mt-2">
+                <Button
+                  variant="secondary"
+                  label="Importar planilha"
+                  icon="cloud-upload-outline"
+                  onPress={() => navigation.navigate('ImportProducts')}
+                />
+              </View>
             </View>
           )}
         </View>

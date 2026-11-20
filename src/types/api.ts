@@ -159,6 +159,8 @@ export interface LookResponse {
   /** Tamanhos disponíveis (ver utils/tamanhos.ts). Vazio = não informado; ausente
    *  em respostas de um back-end anterior ao filtro de tamanho. */
   sizes?: string[];
+  /** Código da peça na loja (opcional, único por loja) — chave da reimportação. */
+  sku?: string | null;
   likes_count: number;
   saves_count: number;
   status: string;
@@ -179,6 +181,8 @@ export interface LookCreate {
   stock_quantity?: number;
   /** Subconjunto de utils/tamanhos.ts. */
   sizes?: string[];
+  /** Código da peça na loja (opcional, único por loja). */
+  sku?: string;
 }
 
 export type LookUpdate = Partial<LookCreate>;
