@@ -337,6 +337,28 @@ export interface ItemVenda {
   fulfillment_status: SituacaoEnvio;
   tracking_code: string | null;
   shipped_at: ISODateTime | null;
+  /** Taxa Lookly congelada na venda (0% na demo). */
+  platform_fee_percent?: Decimal;
+  platform_fee_amount?: Decimal;
+  /** Parte desta peça na tarifa do Mercado Pago (null = não registrada). */
+  mp_fee_amount?: Decimal | null;
+  /** O que a loja recebe por esta peça: subtotal - taxa Lookly - tarifa MP. */
+  seller_net_amount?: Decimal | null;
+  fee_rule?: FaseTaxa;
+  payout_status?: 'pending' | 'paid';
+}
+
+export type FaseTaxa = 'demo' | 'carencia' | 'padrao';
+
+/** Taxa da plataforma desta loja hoje (`GET /inventory/platform-fee`). */
+export interface TaxaDaLoja {
+  phase: FaseTaxa;
+  current_percent: Decimal;
+  standard_percent: Decimal;
+  grace_days: number;
+  demo_ends_at: ISODateTime | null;
+  grace_ends_at: ISODateTime | null;
+  message: string;
 }
 
 export interface VendaApp {
@@ -348,6 +370,9 @@ export interface VendaApp {
   order_status: string;
   items: ItemVenda[];
   total: Decimal;
+  fee_total?: Decimal;
+  mp_fee_total?: Decimal;
+  net_total?: Decimal | null;
   fulfillment_status: SituacaoEnvio;
 }
 
@@ -376,6 +401,11 @@ export interface Metricas {
   revenue_app: Decimal;
   revenue_external: Decimal;
   revenue_by_channel: Record<string, Decimal>;
+  /** Só vendas do app: vendas fora do app não pagam taxa nem tarifa. */
+  platform_fees?: Decimal;
+  mp_fees?: Decimal;
+  net_revenue_app?: Decimal;
+  platform_fee?: TaxaDaLoja | null;
   gross_profit: Decimal | null;
   revenue_with_cost: Decimal;
   series: { day: string; revenue: Decimal; units: number }[];

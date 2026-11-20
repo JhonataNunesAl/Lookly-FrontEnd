@@ -31,6 +31,37 @@ function endereco(e: Record<string, string>): string {
   return [linha1, linha2, linha3].filter(Boolean).join('\n');
 }
 
+function Linha({ rotulo, valor, forte }: { rotulo: string; valor: string; forte?: boolean }) {
+  return (
+    <View className="flex-row justify-between gap-3">
+      <Text className={`text-sm flex-1 ${forte ? 'text-ink font-sans-bold' : 'text-ink-3 font-sans-medium'}`}>{rotulo}</Text>
+      <Text className={`text-sm ${forte ? 'text-ink font-sans-bold' : 'text-ink-3 font-sans-medium'}`}>{valor}</Text>
+    </View>
+  );
+}
+
+/** Quanto a loja recebe deste pedido: total - taxa Lookly - tarifa do Mercado Pago. */
+function ResumoRepasse({ v }: { v: VendaApp }) {
+  if (v.net_total == null) return null;
+  const pct = Number(v.items[0]?.platform_fee_percent ?? 0);
+  const taxa = Number(v.fee_total ?? 0);
+  const tarifa = Number(v.mp_fee_total ?? 0);
+  const pago = v.items.length > 0 && v.items.every((i) => i.payout_status === 'paid');
+  return (
+    <View className="mt-3 bg-surface-2 border border-surface-5 rounded-card p-3 gap-1">
+      <Linha rotulo="Valor das peças" valor={formatarMoeda(v.total, true)} />
+      <Linha
+        rotulo={`Taxa Lookly (${String(pct).replace('.', ',')}%${v.items[0]?.fee_rule === 'demo' ? ', demonstração' : v.items[0]?.fee_rule === 'carencia' ? ', carência' : ''})`}
+        valor={taxa > 0 ? `− ${formatarMoeda(taxa, true)}` : formatarMoeda(0, true)}
+      />
+      <Linha rotulo="Tarifa do Mercado Pago" valor={tarifa > 0 ? `− ${formatarMoeda(tarifa, true)}` : '—'} />
+      <View className="border-t border-dotted border-ink-5 mt-1 pt-1">
+        <Linha rotulo={pago ? 'Repassado para você' : 'Você recebe'} valor={formatarMoeda(v.net_total, true)} forte />
+      </View>
+    </View>
+  );
+}
+
 /**
  * Vendas do app para separar e enviar (`GET /inventory/sales`). Só pedidos com
  * pagamento aprovado; mostra apenas as peças desta loja. Marcar como enviado
@@ -110,6 +141,8 @@ export default function VendasScreen(): React.ReactElement {
         <Text className="text-ink-3 text-sm font-sans-medium flex-1">{endereco(v.shipping_address) || 'Endereço não informado'}</Text>
         <Text className="text-seal text-lg font-display-bold">{formatarMoeda(v.total, true)}</Text>
       </View>
+
+      <ResumoRepasse v={v} />
 
       {v.fulfillment_status === 'pending' ? (
         <View className="mt-3">
