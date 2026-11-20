@@ -3,13 +3,13 @@ import {
   ActivityIndicator,
   FlatList,
   Image,
-  ScrollView,
   StatusBar,
   TextInput,
   TouchableOpacity,
   View,
 } from 'react-native';
 import Text from '../components/Text';
+import RolagemHorizontal from '../components/RolagemHorizontal';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
 import { useNavigation } from '@react-navigation/native';
@@ -264,16 +264,12 @@ export default function SearchScreen(): React.ReactElement {
         {/* Índice de categorias — texto sublinhado em vez de botões; só vale para peças */}
         {aba === 'looks' && categories.length > 0 && (
           <View className="bg-surface border-b border-surface-5">
-            <FlatList
-              horizontal
-              data={opcoes}
-              keyExtractor={(c) => c.id}
-              showsHorizontalScrollIndicator={false}
-              contentContainerStyle={{ paddingHorizontal: 20, gap: 22 }}
-              renderItem={({ item }) => {
+            <RolagemHorizontal contentContainerStyle={{ paddingHorizontal: 20, gap: 22 }}>
+              {opcoes.map((item) => {
                 const ativa = selectedCategory === item.slug;
                 return (
                   <TouchableOpacity
+                    key={item.id}
                     onPress={() => setSelectedCategory(item.slug)}
                     accessibilityRole="button"
                     accessibilityState={{ selected: ativa }}
@@ -287,17 +283,15 @@ export default function SearchScreen(): React.ReactElement {
                     </Text>
                   </TouchableOpacity>
                 );
-              }}
-            />
+              })}
+            </RolagemHorizontal>
           </View>
         )}
 
         {/* Filtros valendo: etiquetas que saem com um toque */}
         {aba === 'looks' && etiquetas.length > 0 && (
           <View className="bg-surface-2 border-b border-surface-5">
-            <ScrollView
-              horizontal
-              showsHorizontalScrollIndicator={false}
+            <RolagemHorizontal
               contentContainerStyle={{ paddingHorizontal: 16, gap: 16, alignItems: 'center' }}
             >
               {etiquetas.map((e) => (
@@ -319,7 +313,7 @@ export default function SearchScreen(): React.ReactElement {
               >
                 <Text className="text-seal text-base font-sans-bold underline">Limpar tudo</Text>
               </TouchableOpacity>
-            </ScrollView>
+            </RolagemHorizontal>
           </View>
         )}
       </SafeAreaView>

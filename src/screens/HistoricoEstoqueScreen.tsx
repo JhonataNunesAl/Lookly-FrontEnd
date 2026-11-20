@@ -108,27 +108,21 @@ export default function HistoricoEstoqueScreen(): React.ReactElement {
         onBack={() => navigation.goBack()}
       />
 
-      <View>
-        <FlatList
-          horizontal
-          data={FILTROS}
-          keyExtractor={(f) => f.id ?? 'tudo'}
-          showsHorizontalScrollIndicator={false}
-          contentContainerStyle={{ paddingHorizontal: 16, paddingVertical: 10, gap: 8 }}
-          renderItem={({ item: f }) => {
-            const ativo = kind === f.id;
-            return (
-              <TouchableOpacity
-                onPress={() => setKind(f.id)}
-                accessibilityRole="button"
-                accessibilityState={{ selected: ativo }}
-                className={`min-h-11 px-3 justify-center ${ativo ? 'bg-ink border-2 border-ink' : 'bg-surface border border-surface-5'}`}
-              >
-                <Text className={`text-sm ${ativo ? 'text-white font-sans-bold' : 'text-ink-3 font-sans-semibold'}`}>{f.rotulo}</Text>
-              </TouchableOpacity>
-            );
-          }}
-        />
+      <View className="flex-row flex-wrap px-4 py-2.5 gap-2">
+        {FILTROS.map((f) => {
+          const ativo = kind === f.id;
+          return (
+            <TouchableOpacity
+              key={f.id ?? 'tudo'}
+              onPress={() => setKind(f.id)}
+              accessibilityRole="button"
+              accessibilityState={{ selected: ativo }}
+              className={`min-h-11 px-3 justify-center ${ativo ? 'bg-ink border-2 border-ink' : 'bg-surface border border-surface-5'}`}
+            >
+              <Text className={`text-sm ${ativo ? 'text-white font-sans-bold' : 'text-ink-3 font-sans-semibold'}`}>{f.rotulo}</Text>
+            </TouchableOpacity>
+          );
+        })}
       </View>
 
       {loading ? (

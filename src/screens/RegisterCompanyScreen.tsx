@@ -262,7 +262,7 @@ const handleRegister = async () => {
               {/* Seletor de Segmento */}
               <View>
                 <Text className="text-ink text-sm font-sans-bold mb-2">Segmento principal</Text>
-                <ScrollView horizontal showsHorizontalScrollIndicator={false} className="flex-row">
+                <View className="flex-row flex-wrap gap-y-2">
                   {categories.map((cat) => (
                     <TouchableOpacity 
                       key={cat}
@@ -272,7 +272,7 @@ const handleRegister = async () => {
                       <Text className={`text-sm font-sans-bold ${category === cat ? 'text-white' : 'text-ink'}`}>{cat}</Text>
                     </TouchableOpacity>
                   ))}
-                </ScrollView>
+                </View>
               </View>
 
             </View>

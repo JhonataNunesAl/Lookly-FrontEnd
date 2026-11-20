@@ -3,6 +3,7 @@ import { Modal, ScrollView, TouchableOpacity, View } from 'react-native';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import Text from './Text';
+import RolagemHorizontal from './RolagemHorizontal';
 import Button from './Button';
 import { colors } from '../theme/colors';
 
@@ -120,7 +121,7 @@ export default function TutorialImportacao({
             <Text key={i} className="text-ink-3 text-base">{t}</Text>
           ))}
           {atual.tabela ? (
-            <ScrollView horizontal showsHorizontalScrollIndicator={false}>
+            <RolagemHorizontal>
               <View className="border border-ink bg-surface">
                 {atual.tabela.map((linha, i) => (
                   <View key={i} className={`flex-row ${i > 0 ? 'border-t border-surface-5' : 'bg-surface-3'}`}>
@@ -136,7 +137,7 @@ export default function TutorialImportacao({
                   </View>
                 ))}
               </View>
-            </ScrollView>
+            </RolagemHorizontal>
           ) : null}
         </ScrollView>
 

@@ -1,5 +1,6 @@
 import api from './api';
 import {
+  ColecaoLoja,
   ItensEstoqueResponse,
   LookResponse,
   Metricas,
@@ -18,6 +19,7 @@ export interface FiltroItens {
   q?: string;
   situacao?: SituacaoEstoque;
   categoryId?: string | null;
+  colecaoId?: string | null;
   sort?: OrdemEstoque;
   offset?: number;
   limit?: number;
@@ -33,6 +35,7 @@ export async function fetchItensEstoque(f: FiltroItens = {}): Promise<ItensEstoq
   // O back recusa `q=` vazio (min_length=1).
   if (f.q && f.q.trim()) params.q = f.q.trim();
   if (f.categoryId) params.category_id = f.categoryId;
+  if (f.colecaoId) params.collection_id = f.colecaoId;
   const { data } = await api.get<ItensEstoqueResponse>('/inventory/items', { params });
   return data;
 }
@@ -88,4 +91,34 @@ export function mensagemDeErro(e: any, padrao: string): string {
   if (typeof d === 'string') return d;
   if (Array.isArray(d) && d[0]?.msg) return String(d[0].msg).replace(/^Value error, /, '');
   return padrao;
+}
+
+// ─── Coleções da loja ─────────────────────────────────────────────────────────
+
+export async function fetchColecoes(): Promise<ColecaoLoja[]> {
+  const { data } = await api.get<ColecaoLoja[]>('/inventory/collections');
+  return data;
+}
+
+export async function criarColecao(name: string, description?: string): Promise<ColecaoLoja> {
+  const { data } = await api.post<ColecaoLoja>('/inventory/collections', { name, description });
+  return data;
+}
+
+export async function renomearColecao(id: string, name: string): Promise<ColecaoLoja> {
+  const { data } = await api.patch<ColecaoLoja>(`/inventory/collections/${id}`, { name });
+  return data;
+}
+
+/** Apaga só a coleção; as peças continuam no estoque. */
+export async function apagarColecao(id: string): Promise<void> {
+  await api.delete(`/inventory/collections/${id}`);
+}
+
+/** Define em quais coleções a peça está (substitui a lista anterior). */
+export async function definirColecoesDaPeca(lookId: string, collectionIds: string[]): Promise<string[]> {
+  const { data } = await api.put<{ collection_ids: string[] }>(`/inventory/items/${lookId}/collections`, {
+    collection_ids: collectionIds,
+  });
+  return data.collection_ids;
 }

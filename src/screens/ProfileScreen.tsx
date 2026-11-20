@@ -9,6 +9,7 @@ import {
   Alert,
 } from 'react-native';
 import Text from '../components/Text';
+import RolagemHorizontal from '../components/RolagemHorizontal';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { useFocusEffect, useNavigation } from '@react-navigation/native';
@@ -266,9 +267,7 @@ export default function ProfileScreen(): React.ReactElement {
             onAction={() => navigation.navigate('Salvos')}
           />
           {vitrine.length > 0 ? (
-            <ScrollView
-              horizontal
-              showsHorizontalScrollIndicator={false}
+            <RolagemHorizontal
               contentContainerStyle={{ paddingHorizontal: 16, gap: 12 }}
             >
               {vitrine.slice(0, MAX_VITRINE).map((peca) => (
@@ -289,7 +288,7 @@ export default function ProfileScreen(): React.ReactElement {
                   <Text className="text-ink-4 text-xs font-mono">{refDaPeca(peca.id)}</Text>
                 </TouchableOpacity>
               ))}
-            </ScrollView>
+            </RolagemHorizontal>
           ) : (
             <Text className="text-ink-3 text-lg font-display-italic px-5">
               Salve peças no catálogo para montar sua coleção.
