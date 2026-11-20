@@ -1,4 +1,4 @@
-import React, { useCallback, useState } from 'react';
+import React, { useCallback, useEffect, useState } from 'react';
 import {
   ActivityIndicator,
   View,
@@ -21,6 +21,7 @@ import { SellerResponse } from '../types/api';
 import { fetchMyStore, updateMyStore } from '../lib/sellers';
 import { enviarFoto, erroDeUpload, escolherFotos } from '../lib/media';
 import { supabase } from '../lib/supabase';
+import { souAdmin } from '../lib/admin';
 
 /**
  * Perfil da marca — a aba "Perfil" da área de empresa.
@@ -40,6 +41,8 @@ export default function CompanyProfileScreen(): React.ReactElement {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(false);
   const [trocandoLogo, setTrocandoLogo] = useState(false);
+  const [ehAdmin, setEhAdmin] = useState(false);
+  useEffect(() => { souAdmin().then(setEhAdmin); }, []);
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -201,6 +204,14 @@ export default function CompanyProfileScreen(): React.ReactElement {
               label={loja.store_url}
               onPress={abrirSite}
             />
+          ) : null}
+
+          {/* Só para o admin — quem decide é o servidor (GET /api/admin/me) */}
+          {ehAdmin ? (
+            <>
+              <SectionTitle title="Lookly" />
+              <MenuButton icon="shield-checkmark-outline" label="Administração" onPress={() => navigation.navigate('Admin')} />
+            </>
           ) : null}
 
           <SectionTitle title="Preferências" />

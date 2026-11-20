@@ -1,4 +1,4 @@
-import React, { useState, useCallback } from 'react';
+import React, { useState, useCallback, useEffect } from 'react';
 import {
   View,
   ScrollView,
@@ -23,6 +23,7 @@ import { updateMyProfile } from '../lib/profile';
 import { enviarFoto, erroDeUpload, escolherFotos } from '../lib/media';
 import api from '../lib/api';
 import { supabase } from '../lib/supabase';
+import { souAdmin } from '../lib/admin';
 import { colors } from '../theme/colors';
 import { MeterBar, SectionHeader, SectionTitle, MenuButton } from '../components/PanelKit';
 import Button from '../components/Button';
@@ -88,6 +89,8 @@ export default function ProfileScreen(): React.ReactElement {
   const [vitrine, setVitrine] = useState<LookResponse[]>([]);
   const [affinity, setAffinity] = useState<CategoryAffinityResponse[]>([]);
   const [trocandoFoto, setTrocandoFoto] = useState(false);
+  const [ehAdmin, setEhAdmin] = useState(false);
+  useEffect(() => { souAdmin().then(setEhAdmin); }, []);
   const navigation = useNavigation<NativeStackNavigationProp<any>>();
 
   const loadAccount = useCallback(async () => {
@@ -365,6 +368,14 @@ export default function ProfileScreen(): React.ReactElement {
               />
             </>
           )}
+
+          {/* Só para o admin — quem decide é o servidor (GET /api/admin/me) */}
+          {ehAdmin ? (
+            <>
+              <SectionTitle title="Lookly" />
+              <MenuButton icon="shield-checkmark-outline" label="Administração" onPress={() => navigation.navigate('Admin')} />
+            </>
+          ) : null}
 
           <SectionTitle title="Preferências do app" />
 

@@ -69,6 +69,7 @@ import CompanyInsightsScreen from './src/screens/CompanyInsightsScreen';
 import CompanyProfileScreen from './src/screens/CompanyProfileScreen';
 import VendasScreen from './src/screens/VendasScreen';
 import HistoricoEstoqueScreen from './src/screens/HistoricoEstoqueScreen';
+import AdminScreen from './src/screens/AdminScreen';
 
 import { UserTabParamList, BusinessTabParamList } from './src/types';
 import { colors } from './src/theme/colors';
@@ -326,6 +327,8 @@ export default function App(): React.ReactElement | null {
         />
         <Stack.Screen name="Vendas" component={VendasScreen} />
         <Stack.Screen name="HistoricoEstoque" component={HistoricoEstoqueScreen} />
+        {/* Administração: o botão só aparece para o admin; o servidor recusa os demais */}
+        <Stack.Screen name="Admin" component={AdminScreen} options={{ animation: 'slide_from_right' }} />
         <Stack.Screen
           name="ComingSoon"
           component={ComingSoonScreen}
