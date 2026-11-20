@@ -159,6 +159,8 @@ export interface LookResponse {
   /** Tamanhos disponíveis (ver utils/tamanhos.ts). Vazio = não informado; ausente
    *  em respostas de um back-end anterior ao filtro de tamanho. */
   sizes?: string[];
+  /** Código da peça na loja (opcional, único por loja) — chave da reimportação. */
+  sku?: string | null;
   /** Unidades separadas pela loja (não estão à venda no app). Ausente em back-end antigo. */
   reserved_quantity?: number;
   /** novo | seminovo | usado | vintage (ver utils/estoque.ts). */
@@ -186,6 +188,8 @@ export interface LookCreate {
   stock_quantity?: number;
   /** Subconjunto de utils/tamanhos.ts. */
   sizes?: string[];
+  /** Código da peça na loja (opcional, único por loja). */
+  sku?: string;
   /** Quanto a peça custou para a loja (margem nas métricas). Nunca aparece para o público. */
   cost_price?: number | null;
   condition?: string | null;

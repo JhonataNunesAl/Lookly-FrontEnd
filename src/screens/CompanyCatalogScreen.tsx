@@ -272,6 +272,12 @@ export default function CompanyCatalogScreen(): React.ReactElement {
           </View>
           <Button
             variant="icon"
+            icon="cloud-upload-outline"
+            accessibilityLabel="Importar ou exportar planilha de peças"
+            onPress={() => navigation.navigate('ImportProducts')}
+          />
+          <Button
+            variant="icon"
             icon="time-outline"
             accessibilityLabel="Histórico de movimentações"
             onPress={() => navigation.navigate('HistoricoEstoque')}
@@ -421,11 +427,19 @@ export default function CompanyCatalogScreen(): React.ReactElement {
             {counts.todos === 0 ? 'Nenhuma peça cadastrada ainda' : 'Nenhuma peça aqui'}
           </Text>
           <Text className="text-ink-4 text-base font-display-italic text-center mt-1">
-            {counts.todos === 0 ? 'Cadastre a primeira e ela entra no feed.' : 'Tente outra busca, situação ou categoria.'}
+            {counts.todos === 0 ? 'Cadastre a primeira, ou traga o estoque todo de uma planilha.' : 'Tente outra busca, situação ou categoria.'}
           </Text>
           {counts.todos === 0 && (
             <View className="mt-6 self-stretch">
               <Button variant="primary" label="Cadastrar peça" icon="add" onPress={() => navigation.navigate('AddProduct')} />
+              <View className="mt-2">
+                <Button
+                  variant="secondary"
+                  label="Importar planilha"
+                  icon="cloud-upload-outline"
+                  onPress={() => navigation.navigate('ImportProducts')}
+                />
+              </View>
             </View>
           )}
         </View>

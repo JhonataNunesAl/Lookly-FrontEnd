@@ -63,6 +63,7 @@ import ComingSoonScreen from './src/screens/ComingSoonScreen';
 import RegisterCompanyScreen from './src/screens/RegisterCompanyScreen';
 import CompanyDashboardScreen from './src/screens/CompanyDashboardScreen'; // Dashboard principal
 import AddProductScreen from './src/screens/AddProductScreen';
+import ImportProductsScreen from './src/screens/ImportProductsScreen';
 import CompanyCatalogScreen from './src/screens/CompanyCatalogScreen';
 import CompanyInsightsScreen from './src/screens/CompanyInsightsScreen';
 import CompanyProfileScreen from './src/screens/CompanyProfileScreen';
@@ -272,6 +273,11 @@ export default function App(): React.ReactElement | null {
           name="AddProduct" 
           component={AddProductScreen} 
           options={{ animation: 'slide_from_bottom' }} 
+        />
+        <Stack.Screen
+          name="ImportProducts"
+          component={ImportProductsScreen}
+          options={{ animation: 'slide_from_right' }}
         />
         <Stack.Screen 
           name="Carrinho" 
