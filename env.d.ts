@@ -10,5 +10,7 @@ declare const process: {
     EXPO_PUBLIC_SUPABASE_ANON_KEY?: string;
       /** '1' envia os logs de erro ao servidor também em desenvolvimento (lib/logger.ts). */
       EXPO_PUBLIC_LOG_REMOTO?: string;
+    /** E-mails que veem o botão de Administração (o servidor confere de verdade). */
+    EXPO_PUBLIC_ADMIN_EMAILS?: string;
   };
 };
