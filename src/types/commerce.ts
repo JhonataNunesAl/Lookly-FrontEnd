@@ -1,15 +1,6 @@
 import { UUID, ISODateTime, Decimal } from './api';
 
-/**
- * RASCUNHO — nada aqui é persistido de verdade ainda. O backend (Lucker) não
- * tem camada de comércio (pedidos/pagamentos/estoque); ver "Commerce
- * invariants" no CLAUDE.md dele antes de implementar isso pra valer — os
- * tipos abaixo já seguem aquele desenho (sub-pedido por loja, item como
- * snapshot, pagamento como tabela própria) pra front e back não divergirem
- * quando alguém construir o backend real. `src/lib/commerce.ts` é o outro
- * lado deste rascunho — comece por ele.
- */
-
+/** Item do carrinho como a tela usa (vem de `/cart-items/user/`). */
 export interface CartItem {
   lookId: UUID;
   name: string;
@@ -19,55 +10,47 @@ export interface CartItem {
   selectedSize?: string;
 }
 
-export type OrderStatus =
-  | 'pending_payment'
-  | 'paid'
-  | 'preparing'
-  | 'shipped'
-  | 'delivered'
-  | 'cancelled';
-
-export interface Address {
-  line1: string;
-  line2?: string;
-  neighborhood: string;
+/** Endereço digitado no checkout (mesmos campos de `EnderecoEntrega` no backend). */
+export interface EnderecoEntrega {
+  postal_code: string;
+  street: string;
+  number: string;
+  complement: string;
+  district: string;
   city: string;
   state: string;
-  zipCode: string;
 }
 
-export type PaymentMethod =
-  | { type: 'credit_card'; lastFourDigits: string; installments: number }
-  | { type: 'pix' }
-  | { type: 'boleto' };
-
-/** Snapshot — nome/preço/foto copiados na hora da compra. O look pode mudar
- *  ou sumir depois; o pedido não pode. */
-export interface OrderItem {
-  id: UUID;
-  lookName: string;
-  photo: string;
-  unitPrice: Decimal;
-  quantity: number;
-  selectedSize?: string;
-}
-
-/** Um pedido pode ter várias lojas — um pagamento/endereço, uma sub_order por
- *  vendedor, cada uma com status e rastreio próprios (uma loja atrasar não
- *  trava as outras). */
-export interface SubOrder {
-  id: UUID;
-  sellerId: UUID;
-  sellerName: string;
-  status: OrderStatus;
-  items: OrderItem[];
-  trackingCode?: string;
-}
-
-export interface Order {
-  id: UUID;
-  createdAt: ISODateTime;
+export interface CheckoutResultado {
+  order_id: UUID;
   total: Decimal;
-  address: Address;
-  subOrders: SubOrder[];
+  /** Página de pagamento do Mercado Pago. */
+  payment_url: string;
+}
+
+/** Situação do pedido (`orders.status`). */
+export type StatusPedido = 'pending' | 'paid' | 'shipped' | 'delivered' | 'canceled';
+/** Situação do pagamento (`orders.payment_status`). */
+export type StatusPagamento = 'pending' | 'approved' | 'refused' | 'refunded';
+
+/** Snapshot — nome/preço/foto da hora da compra. */
+export interface ItemPedido {
+  look_id: UUID;
+  name: string;
+  photo: string;
+  quantity: number;
+  unit_price: Decimal;
+  subtotal: Decimal;
+}
+
+export interface Pedido {
+  id: UUID;
+  status: StatusPedido;
+  payment_status: StatusPagamento;
+  total: Decimal;
+  shipping_address: Partial<EnderecoEntrega>;
+  created_at: ISODateTime;
+  items: ItemPedido[];
+  /** Só em pedido aguardando pagamento: retomar no Mercado Pago. */
+  payment_url: string | null;
 }

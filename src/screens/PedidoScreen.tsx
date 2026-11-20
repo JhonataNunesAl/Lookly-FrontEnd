@@ -1,165 +1,187 @@
-import React, { useEffect, useState } from 'react';
-import {
-  ActivityIndicator,
-  View,
-  ScrollView,
-  StatusBar,
-} from 'react-native';
-import Text from '../components/Text';
-import { SafeAreaView } from 'react-native-safe-area-context';
+import React, { useCallback, useState } from 'react';
+import { ActivityIndicator, RefreshControl, ScrollView, StatusBar, View } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
-import { useNavigation } from '@react-navigation/native';
+import { useFocusEffect, useNavigation, useRoute } from '@react-navigation/native';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
-import { Order } from '../types/commerce';
-import { fetchOrders } from '../lib/commerce';
-import { colors } from '../theme/colors';
+import Text from '../components/Text';
 import Button from '../components/Button';
 import PecaFoto from '../components/PecaFoto';
 import ScreenHeader from '../components/ScreenHeader';
+import { Pedido } from '../types/commerce';
+import { abrirPagamento, fetchOrders } from '../lib/commerce';
 import { formatarMoeda } from '../utils/format';
+import { colors } from '../theme/colors';
 
-const STATUS_LABEL: Record<string, string> = {
-  pending_payment: 'Aguardando pagamento',
-  paid: 'Pagamento confirmado',
-  preparing: 'Preparando envio',
-  shipped: 'Enviado',
-  delivered: 'Entregue',
-  cancelled: 'Cancelado',
-};
+function situacao(p: Pedido): { titulo: string; texto: string; icone: keyof typeof Ionicons.glyphMap; cor: string } {
+  if (p.payment_status === 'refunded' || p.status === 'canceled') {
+    return { titulo: 'Cancelado', texto: 'Este pedido foi cancelado ou estornado.', icone: 'close', cor: colors.ink.DEFAULT };
+  }
+  if (p.payment_status === 'refused') {
+    return { titulo: 'Pagamento recusado', texto: 'Tente pagar de novo com outro meio.', icone: 'alert', cor: colors.danger };
+  }
+  if (p.status === 'delivered') return { titulo: 'Entregue', texto: 'Aproveite seu look!', icone: 'home', cor: colors.seal.DEFAULT };
+  if (p.status === 'shipped') return { titulo: 'Enviado', texto: 'Seu pedido está a caminho.', icone: 'cube', cor: colors.seal.DEFAULT };
+  if (p.status === 'paid') {
+    return { titulo: 'Pagamento confirmado', texto: 'A loja está preparando seu pedido.', icone: 'checkmark', cor: colors.seal.DEFAULT };
+  }
+  return {
+    titulo: 'Aguardando pagamento',
+    texto: 'Se você já pagou, a confirmação do Mercado Pago chega em instantes.',
+    icone: 'time-outline',
+    cor: colors.ink.DEFAULT,
+  };
+}
 
-/**
- * Confirmação de pedido — rascunho de comércio (ver src/lib/commerce.ts).
- * Antes todo botão daqui era `onPress` ausente; "Voltar para o Feed" agora
- * navega de verdade, "Acompanhar Entrega" leva pra "Em breve" (rastreio não
- * existe) em vez de não fazer nada.
- */
+const ETAPAS = ['Pedido', 'Pagamento', 'Envio', 'Entrega'];
+function etapa(p: Pedido): number {
+  return { pending: 0, paid: 1, shipped: 2, delivered: 3, canceled: 0 }[p.status] ?? 0;
+}
+
+function dataCurta(iso: string): string {
+  const d = new Date(iso);
+  return isNaN(d.getTime()) ? '' : d.toLocaleDateString('pt-BR', { day: '2-digit', month: 'short', year: 'numeric' });
+}
+
+/** Meus pedidos — vêm de `/orders`. O pedido recém-pago (vindo do Mercado Pago)
+ *  aparece primeiro; "Atualizar" relê a confirmação do pagamento. */
 export default function PedidoScreen(): React.ReactElement {
   const navigation = useNavigation<NativeStackNavigationProp<any>>();
-  const [order, setOrder] = useState<Order | null>(null);
-  const [loading, setLoading] = useState(true);
+  const route = useRoute<any>();
+  const destaque: string | undefined = route.params?.pedidoId;
+  const [pedidos, setPedidos] = useState<Pedido[] | null>(null);
+  const [erro, setErro] = useState(false);
+  const [atualizando, setAtualizando] = useState(false);
 
-  useEffect(() => {
-    fetchOrders().then((orders) => {
-      setOrder(orders[0] ?? null);
-      setLoading(false);
-    });
+  const carregar = useCallback(async () => {
+    setErro(false);
+    try {
+      setPedidos(await fetchOrders());
+    } catch {
+      setErro(true);
+    }
   }, []);
 
-  if (loading) {
-    return (
-      <View className="flex-1 bg-background">
-        <ScreenHeader title="Pedido" onBack={() => navigation.goBack()} />
+  useFocusEffect(useCallback(() => { carregar(); }, [carregar]));
+
+  const atualizar = async () => {
+    setAtualizando(true);
+    await carregar();
+    setAtualizando(false);
+  };
+
+  const ordenados = (pedidos ?? []).slice().sort((a, b) => (a.id === destaque ? -1 : b.id === destaque ? 1 : 0));
+
+  return (
+    <View className="flex-1 bg-background">
+      <StatusBar barStyle="dark-content" backgroundColor={colors.background} />
+      <ScreenHeader
+        title="Meus pedidos"
+        subtitle={pedidos && pedidos.length > 0 ? `${pedidos.length} ${pedidos.length === 1 ? 'pedido' : 'pedidos'}` : undefined}
+        onBack={() => (navigation.canGoBack() ? navigation.goBack() : navigation.navigate('MainUser'))}
+      />
+
+      {pedidos === null && !erro ? (
         <View className="flex-1 items-center justify-center">
           <ActivityIndicator color={colors.ink.DEFAULT} size="large" />
         </View>
-      </View>
-    );
-  }
-
-  if (!order) {
-    return (
-      <View className="flex-1 bg-background">
-        <StatusBar barStyle="dark-content" backgroundColor={colors.background} />
-        <ScreenHeader title="Pedidos" onBack={() => navigation.goBack()} />
+      ) : erro ? (
+        <View className="flex-1 items-center justify-center px-8">
+          <Text className="text-ink text-xl font-display-bold text-center">Não foi possível carregar seus pedidos</Text>
+          <View className="mt-6 self-stretch">
+            <Button variant="primary" label="Tentar de novo" icon="refresh" onPress={carregar} />
+          </View>
+        </View>
+      ) : ordenados.length === 0 ? (
         <View className="flex-1 items-center justify-center px-8">
           <View className="w-16 h-16 rounded-lg bg-ink items-center justify-center mb-4">
             <Ionicons name="cube-outline" size={32} color={colors.signal.DEFAULT} />
           </View>
           <Text className="text-ink text-2xl font-display-bold text-center">Nenhum pedido ainda</Text>
           <Text className="text-ink-4 text-base text-center mt-2">Quando você finalizar uma compra, ela aparece aqui.</Text>
-        </View>
-      </View>
-    );
-  }
-
-  const subOrder = order.subOrders[0];
-  const etapas = ['Pedido', 'Pagamento', 'Envio', 'Entrega'];
-  const etapaAtual = { pending_payment: 0, paid: 1, preparing: 1, shipped: 2, delivered: 3, cancelled: 0 }[
-    subOrder?.status ?? 'preparing'
-  ] ?? 1;
-
-  return (
-    <View className="flex-1 bg-background">
-      <StatusBar barStyle="dark-content" backgroundColor={colors.background} />
-      <ScreenHeader title="Pedido realizado" subtitle={`Nº ${order.id}`} onBack={() => navigation.goBack()} />
-
-      <ScrollView className="flex-1" contentContainerStyle={{ padding: 16 }} showsVerticalScrollIndicator={false}>
-
-        {/* Situação: faixa preta com o status por extenso */}
-        <View className="bg-ink rounded-card p-5 mb-3">
-          <View className="flex-row items-center gap-3 mb-5">
-            <View className="w-12 h-12 rounded-lg bg-seal items-center justify-center">
-              <Ionicons name="checkmark" size={30} color={colors.white} />
-            </View>
-            <View className="flex-1">
-              <Text className="text-white text-lg font-display-bold">{STATUS_LABEL[subOrder?.status ?? 'preparing']}</Text>
-              <Text className="text-white text-sm">Estamos preparando seu look com cuidado.</Text>
-            </View>
+          <View className="mt-6 self-stretch">
+            <Button variant="secondary" label="Voltar para o feed" onPress={() => navigation.navigate('MainUser')} />
           </View>
-
-          {/* Etapas: quadrados preenchidos até a etapa atual */}
-          <View className="flex-row items-center">
-            {etapas.map((nome, i) => (
-              <React.Fragment key={nome}>
-                <View className="items-center">
-                  <View className={`w-4 h-4 rounded-sm ${i <= etapaAtual ? 'bg-seal' : 'bg-ink-3'}`} />
-                  <Text className={`text-xs mt-1.5 ${i <= etapaAtual ? 'text-white font-sans-bold' : 'text-white/70'}`}>{nome}</Text>
+        </View>
+      ) : (
+        <ScrollView
+          className="flex-1"
+          contentContainerStyle={{ padding: 16, paddingBottom: 32 }}
+          refreshControl={<RefreshControl refreshing={atualizando} onRefresh={atualizar} />}
+        >
+          <View className="mb-3">
+            <Button variant="secondary" label="Atualizar" icon="refresh" onPress={atualizar} loading={atualizando} />
+          </View>
+          {ordenados.map((p) => {
+            const s = situacao(p);
+            const atual = etapa(p);
+            const end = p.shipping_address;
+            return (
+              <View key={p.id} className={`bg-surface rounded-card border p-4 mb-4 ${p.id === destaque ? 'border-seal border-2' : 'border-surface-5'}`}>
+                <View className="flex-row items-center mb-3">
+                  <View className="w-11 h-11 rounded-lg items-center justify-center" style={{ backgroundColor: s.cor }}>
+                    <Ionicons name={s.icone} size={24} color={colors.white} />
+                  </View>
+                  <View className="flex-1 ml-3">
+                    <Text className="text-ink text-lg font-display-bold">{s.titulo}</Text>
+                    <Text className="text-ink-4 text-sm">
+                      Nº {p.id.slice(0, 8).toUpperCase()} · {dataCurta(p.created_at)}
+                    </Text>
+                  </View>
                 </View>
-                {i < etapas.length - 1 && (
-                  <View className={`flex-1 h-[3px] mx-1 mb-5 ${i < etapaAtual ? 'bg-seal' : 'bg-ink-3'}`} />
+                <Text className="text-ink-3 text-sm mb-3">{s.texto}</Text>
+
+                {p.status !== 'canceled' && (
+                  <View className="flex-row items-center mb-4">
+                    {ETAPAS.map((nome, i) => (
+                      <React.Fragment key={nome}>
+                        <View className="items-center">
+                          <View className={`w-3.5 h-3.5 rounded-sm ${i <= atual ? 'bg-seal' : 'bg-surface-5'}`} />
+                          <Text className={`text-xs mt-1 ${i <= atual ? 'text-ink font-sans-bold' : 'text-ink-4'}`}>{nome}</Text>
+                        </View>
+                        {i < ETAPAS.length - 1 && <View className={`flex-1 h-[2px] mx-1 mb-4 ${i < atual ? 'bg-seal' : 'bg-surface-5'}`} />}
+                      </React.Fragment>
+                    ))}
+                  </View>
                 )}
-              </React.Fragment>
-            ))}
-          </View>
-        </View>
 
-        {/* Itens */}
-        {subOrder?.items.map((item) => (
-          <View key={item.id} className="flex-row items-center bg-surface rounded-card border border-surface-5 p-3 mb-2">
-            <PecaFoto uri={item.photo} compact className="w-16 h-20 rounded-lg" />
-            <View className="ml-3 flex-1">
-              <Text className="text-ink text-base font-sans-bold" numberOfLines={2}>{item.lookName}</Text>
-              {item.selectedSize ? (
-                <Text className="text-ink-4 text-sm">Tamanho {item.selectedSize}</Text>
-              ) : null}
-              <Text className="text-ink text-lg font-display-bold mt-0.5">{formatarMoeda(Number(item.unitPrice), true)}</Text>
-            </View>
-          </View>
-        ))}
+                {p.items.map((it) => (
+                  <View key={it.look_id} className="flex-row items-center mb-2">
+                    <PecaFoto uri={it.photo} compact className="w-12 h-16 rounded-lg" />
+                    <View className="flex-1 ml-3">
+                      <Text className="text-ink text-base font-sans-bold" numberOfLines={1}>{it.name}</Text>
+                      <Text className="text-ink-4 text-sm">{it.quantity} × {formatarMoeda(Number(it.unit_price), true)}</Text>
+                    </View>
+                  </View>
+                ))}
 
-        {/* Entrega */}
-        <View className="bg-surface rounded-card border border-surface-5 p-5 mt-1">
-          <View className="flex-row items-center gap-3 mb-3">
-            <View className="w-10 h-10 rounded-lg bg-ink items-center justify-center">
-              <Ionicons name="location" size={22} color={colors.white} />
-            </View>
-            <Text className="text-ink text-base font-sans-bold">Endereço de entrega</Text>
-          </View>
-          <Text className="text-ink-3 text-base leading-6">
-            {order.address.line1}{order.address.line2 ? ` • ${order.address.line2}` : ''}{"\n"}
-            {order.address.neighborhood}, {order.address.city} - {order.address.state}{"\n"}
-            CEP: {order.address.zipCode}
-          </Text>
-        </View>
+                {end?.street ? (
+                  <Text className="text-ink-3 text-sm mt-1 leading-5">
+                    {end.street}, {end.number}{end.complement ? ` • ${end.complement}` : ''}{'\n'}
+                    {end.district}, {end.city} - {end.state} · CEP {end.postal_code}
+                  </Text>
+                ) : null}
 
-      </ScrollView>
+                <View className="flex-row items-end mt-3 pt-3 border-t border-dashed border-ink">
+                  <Text className="text-ink text-lg font-display-bold">Total</Text>
+                  <View className="flex-1 mx-2 mb-2 border-b border-dotted border-ink-5" />
+                  <Text className="text-seal text-xl font-display-bold">{formatarMoeda(Number(p.total), true)}</Text>
+                </View>
 
-      {/* Ações fixas */}
-      <SafeAreaView edges={['bottom']} className="bg-background">
-        <View className="px-4 pt-3 pb-3 gap-y-2">
-          <Button
-            variant="primary"
-            label="Acompanhar entrega"
-            icon="navigate-outline"
-            onPress={() => navigation.navigate('ComingSoon', {
-              title: 'Rastreio de entrega',
-              description: 'Acompanhamento de envio em tempo real ainda não existe — depende da camada de comércio e de integração com transportadora.',
-              icon: 'navigate-outline',
-            })}
-          />
-          <Button variant="secondary" label="Voltar para o feed" onPress={() => navigation.navigate('MainUser')} />
-        </View>
-      </SafeAreaView>
+                {p.payment_url && p.payment_status !== 'approved' ? (
+                  <View className="mt-3">
+                    <Button
+                      variant="primary"
+                      label={p.payment_status === 'refused' ? 'Tentar pagar de novo' : 'Pagar agora'}
+                      icon="card-outline"
+                      onPress={() => abrirPagamento(p.payment_url!)}
+                    />
+                  </View>
+                ) : null}
+              </View>
+            );
+          })}
+        </ScrollView>
+      )}
     </View>
   );
 }

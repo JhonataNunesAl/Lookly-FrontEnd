@@ -22,7 +22,7 @@ import { colors } from '../theme/colors';
 
 /**
  * Carrinho — itens vêm de `/cart-items` de verdade (ver src/lib/commerce.ts).
- * "Finalizar compra" continua mock: o backend não tem pedidos/pagamento ainda.
+ * "Finalizar compra" leva ao Checkout (endereço + pagamento no Mercado Pago).
  * Sem frete nem parcelamento na tela: nenhum dos dois existe no produto, então
  * não aparecem como promessa.
  */
@@ -93,13 +93,7 @@ export default function CarrinhoScreen(): React.ReactElement {
     }
   };
 
-  const irParaCheckout = () => {
-    navigation.navigate('ComingSoon', {
-      title: 'Finalizar compra',
-      description: 'Checkout e pagamento ainda não existem no backend — ver "Commerce invariants" no CLAUDE.md do Lucker antes de construir isso.',
-      icon: 'card-outline',
-    });
-  };
+  const irParaCheckout = () => navigation.navigate('Checkout');
 
   const renderItem = ({ item }: { item: CartItem }) => (
     <View className="flex-row bg-surface rounded-card border border-surface-5 p-3 mb-3">

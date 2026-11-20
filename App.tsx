@@ -48,6 +48,7 @@ import SearchScreen from './src/screens/SearchScreen';
 import WishlistScreen from './src/screens/WishlistScreen';
 import ProfileScreen from './src/screens/ProfileScreen';
 import CarrinhoScreen from './src/screens/CarrinhoScreen';
+import CheckoutScreen from './src/screens/CheckoutScreen';
 import PedidoScreen from './src/screens/PedidoScreen';
 import RegisterUserScreen from './src/screens/RegisterUserScreen';
 import ConfirmEmailScreen from './src/screens/ConfirmEmailScreen';
@@ -227,6 +228,21 @@ export default function App(): React.ReactElement | null {
     }
   };
 
+  // Site: o Mercado Pago devolve para `/?pagamento=aprovado&pedido=<id>`. Abre
+  // Meus pedidos com esse pedido em destaque e limpa a URL.
+  const voltarDoPagamento = () => {
+    if (Platform.OS !== 'web') return;
+    const loc = (globalThis as any).location;
+    if (!loc?.search) return;
+    const q = new URLSearchParams(loc.search);
+    if (!q.get('pagamento')) return;
+    const pedidoId = q.get('pedido') ?? undefined;
+    (globalThis as any).history?.replaceState(null, '', loc.pathname);
+    if (rotaInicial === 'MainUser' || rotaInicial === 'MainBusiness') {
+      (navigationRef as any).navigate('Pedidos', { pedidoId });
+    }
+  };
+
   // Mantém a splash (creme, ver app.json) até a fonte carregar — sem isso a
   // primeira tela pisca com a fonte do sistema antes de trocar pra Hind.
   if (!pronto) return null;
@@ -235,7 +251,7 @@ export default function App(): React.ReactElement | null {
     <ColunaWeb>
     <ErrorBoundary>
     <SafeAreaProvider>
-    <NavigationContainer ref={navigationRef} onStateChange={lembrarPainel} onReady={lembrarPainel}>
+    <NavigationContainer ref={navigationRef} onStateChange={lembrarPainel} onReady={() => { lembrarPainel(); voltarDoPagamento(); }}>
       {/* Inicial: Login, ou direto o painel quando já há sessão salva */}
       <Stack.Navigator screenOptions={{ headerShown: false }} initialRouteName={rotaInicial ?? 'Login'}>
         
@@ -259,6 +275,11 @@ export default function App(): React.ReactElement | null {
           name="Carrinho" 
           component={CarrinhoScreen} 
           options={{ animation: 'slide_from_right' }} 
+        />
+        <Stack.Screen
+          name="Checkout"
+          component={CheckoutScreen}
+          options={{ animation: 'slide_from_right' }}
         />
         <Stack.Screen
           name="Pedidos"

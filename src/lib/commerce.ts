@@ -1,12 +1,10 @@
+import { Linking, Platform } from 'react-native';
 import api from './api';
-import { CartItem, Order } from '../types/commerce';
+import { CartItem, CheckoutResultado, EnderecoEntrega, Pedido } from '../types/commerce';
 
 /**
- * Carrinho fala com o backend de verdade (`/cart-items`); pedidos/checkout
- * continuam RASCUNHO — o Lucker não tem `orders`/`payments` ainda. Ver
- * "Commerce invariants" no CLAUDE.md do Lucker antes de implementar
- * `checkout` de verdade — idempotência, sub-pedido por loja e snapshot de
- * preço não são opcionais.
+ * Carrinho (`/cart-items`) e pedidos/pagamento (`/orders`, Mercado Pago) falam
+ * com o backend de verdade.
  *
  * Peculiaridades da API de carrinho (todas as rotas terminam com `/`):
  * - Quantidade é por DELTA, não valor absoluto: `PUT /add/{look_id}/` soma,
@@ -68,54 +66,61 @@ export async function removeFromCart(lookId: string): Promise<void> {
   await api.delete('/cart-items/user/', { data: { look_id: lookId } });
 }
 
-// ─── Pedidos — ainda rascunho, o Lucker não tem orders/payments ──────────────
+// ─── Pedidos e pagamento (Mercado Pago Checkout Pro) ───────────────────────────
+// O backend cria o pedido a partir do carrinho e devolve a URL de pagamento do
+// Mercado Pago; a pessoa paga lá (Pix, cartão, boleto) e o webhook marca o pedido
+// como pago. O app nunca vê dado de cartão.
 
-const MOCK_ORDER: Order = {
-  id: '#LK-882910',
-  createdAt: '2026-05-07T12:00:00Z',
-  total: '299.90',
-  address: {
-    line1: 'Rua das Fashionistas, 123',
-    line2: 'Bloco A, Apt 42',
-    neighborhood: 'Jardins',
-    city: 'São Paulo',
-    state: 'SP',
-    zipCode: '01234-567',
-  },
-  subOrders: [
-    {
-      id: '#LK-882910-1',
-      sellerId: 'mock-seller',
-      sellerName: 'Lookly Studio',
-      status: 'preparing',
-      items: [
-        {
-          id: '1',
-          lookName: 'Jaqueta Puffer Noir',
-          photo: 'https://images.unsplash.com/photo-1591047139829-d91aecb6caea',
-          unitPrice: '299.90',
-          quantity: 1,
-          selectedSize: 'G',
-        },
-      ],
-    },
-  ],
-};
-
-// TODO(commerce): POST /api/orders — não implementar sem antes desenhar o
-// backend (idempotency_key, reserva de estoque, split por loja).
-export async function checkout(): Promise<Order> {
-  throw new Error('checkout ainda não implementado — ver src/lib/commerce.ts');
+export async function checkout(address: EnderecoEntrega): Promise<CheckoutResultado> {
+  const { data } = await api.post<CheckoutResultado>('/orders/checkout', { address });
+  return data;
 }
 
-// TODO(commerce): GET /api/orders
-export async function fetchOrders(): Promise<Order[]> {
-  return [MOCK_ORDER];
+export async function fetchOrders(): Promise<Pedido[]> {
+  const { data } = await api.get<Pedido[]>('/orders');
+  return data;
 }
 
-// TODO(commerce): GET /api/orders/{id}
-export async function fetchOrder(orderId: string): Promise<Order | null> {
-  return MOCK_ORDER.id === orderId ? MOCK_ORDER : null;
+export async function fetchOrder(orderId: string): Promise<Pedido | null> {
+  try {
+    const { data } = await api.get<Pedido>(`/orders/${orderId}`);
+    return data;
+  } catch (e: any) {
+    if (e?.response?.status === 404) return null;
+    throw e;
+  }
+}
+
+/** Abre a página de pagamento do Mercado Pago. No site troca a própria aba (o MP
+ *  devolve para o Lookly ao terminar); no celular abre o navegador do sistema. */
+export async function abrirPagamento(url: string): Promise<void> {
+  if (Platform.OS === 'web' && typeof globalThis !== 'undefined' && (globalThis as any).location) {
+    (globalThis as any).location.href = url;
+    return;
+  }
+  await Linking.openURL(url);
+}
+
+/** Endereço pelo CEP (ViaCEP, público e gratuito). Devolve null se não achar. */
+export async function buscarCep(cep: string): Promise<Partial<EnderecoEntrega> | null> {
+  const digitos = cep.replace(/\D/g, '');
+  if (digitos.length !== 8) return null;
+  try {
+    const r = await fetch(`https://viacep.com.br/ws/${digitos}/json/`);
+    const d = await r.json();
+    if (!d || d.erro) return null;
+    return { street: d.logradouro ?? '', district: d.bairro ?? '', city: d.localidade ?? '', state: d.uf ?? '' };
+  } catch {
+    return null;
+  }
+}
+
+/** Texto do erro de checkout (o back manda `detail` em português). */
+export function mensagemDeErroCheckout(e: any): string {
+  const detalhe = e?.response?.data?.detail;
+  if (typeof detalhe === 'string') return detalhe;
+  if (!e?.response) return 'Sem conexão com o servidor. Tente de novo.';
+  return 'Não foi possível iniciar o pagamento. Tente de novo.';
 }
 
 /** Texto de toast para uma falha de carrinho. O back responde 400 com um `detail`
