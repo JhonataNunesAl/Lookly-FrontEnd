@@ -1,0 +1,13 @@
+// Site do Lookly no Cloudflare (Workers com arquivos estáticos).
+// Publicar: npm run deploy:web
+// account_id fixado: a conta do Lookly (yorn.exe). NUNCA trocar pela conta do KongCode.
+{
+  "name": "lookerstyle",
+  "account_id": "32b77c655e4f766e98abbc31059de734",
+  "compatibility_date": "2026-11-18",
+  "assets": {
+    "directory": "./dist",
+    // App de página única: qualquer rota desconhecida devolve o index.html.
+    "not_found_handling": "single-page-application"
+  }
+}
