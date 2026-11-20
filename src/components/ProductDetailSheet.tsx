@@ -4,6 +4,7 @@ import {
   BackHandler,
   Dimensions,
   Linking,
+  Platform,
   ScrollView,
   TouchableOpacity,
   View,
@@ -42,6 +43,12 @@ const ProductDetailSheet: React.FC<ProductDetailSheetProps> = ({
   const translateY = useRef(new Animated.Value(height)).current;
 
   useEffect(() => {
+    // No site a mola não roda de forma confiável (o sheet ficava parado fora da
+    // tela); lá ele simplesmente aparece no lugar.
+    if (Platform.OS === 'web') {
+      translateY.setValue(look ? 0 : height);
+      return;
+    }
     Animated.spring(translateY, {
       toValue: look ? 0 : height,
       tension: 65,
@@ -72,17 +79,29 @@ const ProductDetailSheet: React.FC<ProductDetailSheetProps> = ({
   return (
     <>
       {/* Scrim / backdrop */}
+      {/* Posição e camadas em `style` (não em className): no site o Animated.View
+          não recebia as classes do NativeWind e o sheet ficava ATRÁS do scrim,
+          escuro e sem aceitar cliques. */}
       <TouchableOpacity
         activeOpacity={1}
         onPress={onClose}
         accessible={false}
-        className="absolute inset-0 bg-black/60 z-10"
+        style={{ position: 'absolute', top: 0, bottom: 0, left: 0, right: 0, zIndex: 10, backgroundColor: 'rgba(0,0,0,0.6)' }}
       />
 
       {/* Sheet */}
       <Animated.View
-        style={{ transform: [{ translateY }], height: height * 0.88 }}
-        className="absolute bottom-0 left-0 right-0 bg-background overflow-hidden z-20"
+        style={{
+          transform: [{ translateY }],
+          height: height * 0.88,
+          position: 'absolute',
+          bottom: 0,
+          left: 0,
+          right: 0,
+          zIndex: 20,
+          overflow: 'hidden',
+          backgroundColor: colors.background,
+        }}
       >
         {/* Fotos — carrossel horizontal (o look tem de 1 a 6), em moldura vermelha */}
         <View className="mx-4 mt-3 border-2 border-seal p-1 bg-surface" style={{ height: PHOTO_HEIGHT }}>

@@ -1,9 +1,12 @@
 import './global.css';
 import './src/lib/alertWeb';
+import { LARGURA_MAX_WEB } from './src/lib/webLayout';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import React, { useEffect, useState } from 'react';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import {
+  Animated,
+  Platform,
   View,
 } from 'react-native';
 import Text from './src/components/Text';
@@ -34,6 +37,9 @@ SplashScreen.preventAutoHideAsync().catch(() => {});
 // safe-area-context) respeita o inset dos dois; `cssInterop` é o que faz o
 // `className` do NativeWind chegar nele, já que não é um componente do RN.
 cssInterop(SafeAreaView, { className: 'style' });
+// Idem para o Animated.View: no site as classes dele (absolute, z-*, bottom-*) não
+// chegavam, e o detalhe da peça, o toast e os selos do feed saíam do lugar.
+cssInterop(Animated.View, { className: 'style' });
 
 // --- Telas de Usuário ---
 import LoginScreen from './src/screens/LoginScreen';
@@ -226,6 +232,7 @@ export default function App(): React.ReactElement | null {
   if (!pronto) return null;
 
   return (
+    <ColunaWeb>
     <ErrorBoundary>
     <SafeAreaProvider>
     <NavigationContainer ref={navigationRef} onStateChange={lembrarPainel} onReady={lembrarPainel}>
@@ -298,5 +305,33 @@ export default function App(): React.ReactElement | null {
     </NavigationContainer>
     </SafeAreaProvider>
     </ErrorBoundary>
+    </ColunaWeb>
+  );
+}
+
+/**
+ * No site, o app fica numa coluna do tamanho de um celular, centralizada, com o
+ * fundo de papel nas laterais — a mesma experiência do app, sem esticar fotos e
+ * botões por 1900px. No celular é transparente (só devolve os filhos).
+ */
+function ColunaWeb({ children }: { children: React.ReactNode }): React.ReactElement {
+  if (Platform.OS !== 'web') return <>{children}</>;
+  return (
+    <View style={{ flex: 1, alignItems: 'center', backgroundColor: '#E4D6B6' }}>
+      <View
+        style={{
+          flex: 1,
+          width: '100%',
+          maxWidth: LARGURA_MAX_WEB,
+          overflow: 'hidden',
+          backgroundColor: '#F3E9D2',
+          borderLeftWidth: 1,
+          borderRightWidth: 1,
+          borderColor: 'rgba(0,0,0,0.12)',
+        }}
+      >
+        {children}
+      </View>
+    </View>
   );
 }
