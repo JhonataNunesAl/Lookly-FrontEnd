@@ -159,6 +159,13 @@ export interface LookResponse {
   /** Tamanhos disponíveis (ver utils/tamanhos.ts). Vazio = não informado; ausente
    *  em respostas de um back-end anterior ao filtro de tamanho. */
   sizes?: string[];
+  /** Unidades separadas pela loja (não estão à venda no app). Ausente em back-end antigo. */
+  reserved_quantity?: number;
+  /** novo | seminovo | usado | vintage (ver utils/estoque.ts). */
+  condition?: string | null;
+  brand?: string | null;
+  /** Só nas rotas da própria loja (`/looks/mine`, `/inventory/*`); nunca no feed. */
+  cost_price?: Decimal | null;
   likes_count: number;
   saves_count: number;
   status: string;
@@ -179,6 +186,10 @@ export interface LookCreate {
   stock_quantity?: number;
   /** Subconjunto de utils/tamanhos.ts. */
   sizes?: string[];
+  /** Quanto a peça custou para a loja (margem nas métricas). Nunca aparece para o público. */
+  cost_price?: number | null;
+  condition?: string | null;
+  brand?: string | null;
 }
 
 export type LookUpdate = Partial<LookCreate>;
@@ -235,4 +246,141 @@ export interface ReportResponse {
   description: string | null;
   status: string;
   created_at: ISODateTime | null;
+}
+
+// ─── Gestão de estoque (/api/inventory) ──────────────────────────────────────
+
+export type SituacaoEstoque =
+  | 'todos' | 'disponivel' | 'acabando' | 'esgotado' | 'reservado' | 'pausado' | 'parado';
+
+export type OrdemEstoque =
+  | 'recentes' | 'antigos' | 'nome' | 'preco_asc' | 'preco_desc'
+  | 'estoque_asc' | 'estoque_desc' | 'mais_vendidos' | 'parados';
+
+export interface ItemEstoque extends LookResponse {
+  available_quantity: number;
+  units_sold: number;
+  revenue: Decimal;
+  last_sale_at: ISODateTime | null;
+  days_without_sale: number | null;
+}
+
+export interface ItensEstoqueResponse {
+  items: ItemEstoque[];
+  total: number;
+  next_offset: number | null;
+  counts: Record<SituacaoEstoque, number>;
+}
+
+export type TipoMovimento =
+  | 'entrada' | 'venda_externa' | 'venda_app' | 'ajuste' | 'perda' | 'devolucao' | 'reserva' | 'liberacao';
+
+export type CanalVenda = 'instagram' | 'whatsapp' | 'loja_fisica' | 'feira' | 'site' | 'outro';
+
+export interface MovimentoCreate {
+  kind: Exclude<TipoMovimento, 'venda_app'>;
+  /** Sempre positivo; em `ajuste` é o NOVO total contado. */
+  quantity: number;
+  unit_price?: number;
+  channel?: CanalVenda;
+  note?: string;
+}
+
+export interface Movimento {
+  id: UUID;
+  look_id: UUID | null;
+  look_name: string;
+  kind: TipoMovimento;
+  /** Variação com sinal (estoque; em reserva/liberação, a reserva). */
+  quantity: number;
+  stock_after: number;
+  reserved_after: number;
+  unit_price: Decimal | null;
+  channel: CanalVenda | null;
+  note: string | null;
+  order_id: UUID | null;
+  created_at: ISODateTime;
+}
+
+export interface MovimentosResponse {
+  items: Movimento[];
+  next_cursor: string | null;
+}
+
+export type SituacaoEnvio = 'pending' | 'shipped' | 'delivered';
+
+export interface ItemVenda {
+  order_item_id: UUID;
+  look_id: UUID;
+  name: string;
+  photo: string;
+  quantity: number;
+  unit_price: Decimal;
+  subtotal: Decimal;
+  fulfillment_status: SituacaoEnvio;
+  tracking_code: string | null;
+  shipped_at: ISODateTime | null;
+}
+
+export interface VendaApp {
+  order_id: UUID;
+  created_at: ISODateTime;
+  buyer_name: string | null;
+  shipping_address: Record<string, string>;
+  payment_status: string;
+  order_status: string;
+  items: ItemVenda[];
+  total: Decimal;
+  fulfillment_status: SituacaoEnvio;
+}
+
+export interface VendasResponse {
+  items: VendaApp[];
+  counts: Record<SituacaoEnvio | 'todos', number>;
+}
+
+export interface PecaMetrica {
+  look_id: UUID;
+  name: string;
+  photo: string | null;
+  value: number | string;
+  detail: string | null;
+}
+
+export interface Metricas {
+  period_days: number;
+  since: ISODateTime;
+  revenue: Decimal;
+  revenue_prev: Decimal;
+  units_sold: number;
+  units_sold_prev: number;
+  sales_count: number;
+  avg_ticket: Decimal | null;
+  revenue_app: Decimal;
+  revenue_external: Decimal;
+  revenue_by_channel: Record<string, Decimal>;
+  gross_profit: Decimal | null;
+  revenue_with_cost: Decimal;
+  series: { day: string; revenue: Decimal; units: number }[];
+  pieces_total: number;
+  pieces_active: number;
+  pieces_paused: number;
+  units_in_stock: number;
+  units_reserved: number;
+  out_of_stock: number;
+  low_stock: number;
+  stock_value_price: Decimal;
+  stock_value_cost: Decimal;
+  pieces_without_cost: number;
+  sell_through_pct: number | null;
+  avg_days_to_sell: number | null;
+  stale_count: number;
+  stale_days: number;
+  views: number | null;
+  likes: number;
+  saves: number;
+  to_ship: number;
+  top_sold: PecaMetrica[];
+  top_viewed: PecaMetrica[];
+  stale: PecaMetrica[];
 }

@@ -24,6 +24,7 @@ import Campo from '../components/Campo';
 import PecaFoto from '../components/PecaFoto';
 import SeletorTamanhos from '../components/SeletorTamanhos';
 import ScreenHeader from '../components/ScreenHeader';
+import { CONDICOES } from '../utils/estoque';
 
 const MAX_FOTOS = 6;
 
@@ -50,6 +51,9 @@ export default function AddProductScreen(): React.ReactElement {
   const [descricao, setDescricao] = useState(edicao?.description ?? '');
   const [link, setLink] = useState(edicao?.buy_link ?? '');
   const [tamanhos, setTamanhos] = useState<string[]>(edicao?.sizes ?? []);
+  const [custo, setCusto] = useState(edicao ? precoParaCampo(edicao.cost_price) : '');
+  const [condicao, setCondicao] = useState<string | null>(edicao?.condition ?? null);
+  const [marca, setMarca] = useState(edicao?.brand ?? '');
   const [categorias, setCategorias] = useState<CategoryResponse[]>([]);
   const [categoriaId, setCategoriaId] = useState<string | null>(edicao?.category_id ?? null);
   const [enviando, setEnviando] = useState(false);
@@ -61,10 +65,12 @@ export default function AddProductScreen(): React.ReactElement {
 
   // ── Validação (espelha as regras de schemas/look.py) ──────────────────────
   const precoNumero = preco.trim() === '' ? undefined : lerPreco(preco);
+  const custoNumero = custo.trim() === '' ? undefined : lerPreco(custo);
   const erros = {
     fotos: fotos.length === 0 ? 'Adicione pelo menos uma foto.' : null,
     nome: nome.trim().length < 2 ? 'O nome precisa de pelo menos 2 letras.' : null,
     preco: preco.trim() !== '' && precoNumero == null ? 'Preço inválido. Exemplo: 289,90' : null,
+    custo: custo.trim() !== '' && custoNumero == null ? 'Valor inválido. Exemplo: 35,00' : null,
     categoria: categoriaId == null ? 'Escolha uma categoria.' : null,
     link: link.trim() !== '' && !/^https?:\/\/\S+\.\S+/.test(link.trim()) ? 'Use um endereço completo, começando com https://' : null,
   };
@@ -113,6 +119,10 @@ export default function AddProductScreen(): React.ReactElement {
         buy_link: link.trim() || undefined,
         stock_quantity: Number(estoque || '0'),
         sizes: tamanhos,
+        // Na edição, vazio = apagar (null); na criação, vazio = não enviar.
+        cost_price: custoNumero ?? (edicao ? null : undefined),
+        condition: condicao ?? (edicao ? null : undefined),
+        brand: marca.trim() || (edicao ? null : undefined),
       };
 
       if (edicao) await updateLook(edicao.id, dados);
@@ -244,8 +254,70 @@ export default function AddProductScreen(): React.ReactElement {
                 keyboardType="number-pad"
                 value={estoque}
                 onChangeText={(v) => setEstoque(v.replace(/\D/g, ''))}
-                dica="Unidades"
+                dica={edicao ? 'Mudar aqui vira um ajuste no histórico' : 'Unidades'}
               />
+            </View>
+          </View>
+
+          {/* Atalho de brechó: peça única = estoque 1 */}
+          {estoque !== '1' ? (
+            <TouchableOpacity
+              onPress={() => setEstoque('1')}
+              accessibilityRole="button"
+              className="-mt-3 min-h-12 flex-row items-center gap-2 self-start"
+            >
+              <MaterialCommunityIcons name="numeric-1-box-outline" size={22} color={colors.ink.DEFAULT} />
+              <Text className="text-ink text-sm font-sans-bold underline">É peça única (estoque 1)</Text>
+            </TouchableOpacity>
+          ) : null}
+
+          <View className="flex-row gap-4">
+            <View className="flex-1">
+              <Campo
+                rotulo="Custo (R$)"
+                placeholder="0,00"
+                keyboardType="decimal-pad"
+                value={custo}
+                onChangeText={setCusto}
+                erro={tentou ? erros.custo : null}
+                dica="Quanto pagou. Só você vê."
+              />
+            </View>
+            <View className="flex-1">
+              <Campo
+                rotulo="Marca"
+                placeholder="Ex.: Farm"
+                value={marca}
+                onChangeText={setMarca}
+                maxLength={80}
+                dica="Opcional"
+              />
+            </View>
+          </View>
+
+          {/* Condição — importante para brechó */}
+          <View>
+            <Text className="text-ink text-base font-display-bold mb-2">Condição</Text>
+            <View className="flex-row flex-wrap gap-2">
+              {CONDICOES.map((c) => {
+                const ativa = condicao === c.id;
+                return (
+                  <TouchableOpacity
+                    key={c.id}
+                    onPress={() => setCondicao(ativa ? null : c.id)}
+                    accessibilityRole="button"
+                    accessibilityState={{ selected: ativa }}
+                    className={`min-h-12 px-4 flex-row items-center justify-center gap-1.5 ${
+                      ativa ? 'bg-ink border-2 border-ink' : 'bg-surface border border-surface-5'
+                    }`}
+                  >
+                    {ativa && <MaterialCommunityIcons name="check" size={18} color={colors.white} />}
+                    <Text className={`text-base ${ativa ? 'text-white font-sans-bold' : 'text-ink-3 font-display-italic'}`}>
+                      {c.rotulo}
+                    </Text>
+                  </TouchableOpacity>
+                );
+              })}
             </View>
           </View>
 

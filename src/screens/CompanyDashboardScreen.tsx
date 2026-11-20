@@ -15,24 +15,26 @@ import { colors } from '../theme/colors';
 import { SectionHeader, StatBoard } from '../components/PanelKit';
 import Button from '../components/Button';
 import PecaFoto from '../components/PecaFoto';
-import { LookResponse, SellerResponse } from '../types/api';
+import { LookResponse, Metricas, SellerResponse } from '../types/api';
 import { fetchMyStore, fetchTodosMeusLooks } from '../lib/sellers';
-import { contar, formatarNumero } from '../utils/format';
+import { fetchMetricas } from '../lib/inventory';
+import { contar, formatarDelta, formatarMoeda, formatarNumero } from '../utils/format';
+import { variacao } from '../utils/estoque';
 import { ESTOQUE_BAIXO, maisEngajadas, resumirLoja } from '../utils/loja';
 
 /**
  * Início da loja — "como está a vitrine agora e o que precisa de mim".
  *
- * Tudo aqui sai do catálogo real da loja (`GET /sellers/me` + `GET /looks/mine`):
- * peças, curtidas, salvos e estoque. Vendas e faturamento NÃO aparecem de
- * propósito — pedidos ainda não existem no backend, e um valor inventado numa
- * tela de dono de loja é pior do que a ausência dele. A faixa "Vendas" avisa
- * isso em vez de simular.
+ * Catálogo real (`GET /sellers/me` + `GET /looks/mine`) e vendas dos últimos 30
+ * dias (`GET /inventory/metrics`): pedidos pagos no app somados às vendas que a
+ * loja registrou fora dele. "Precisa de você" junta pedidos a enviar, estoque
+ * acabando e peças paradas.
  */
 export default function CompanyDashboardScreen(): React.ReactElement {
   const navigation = useNavigation<NativeStackNavigationProp<any>>();
   const [loja, setLoja] = useState<SellerResponse | null>(null);
   const [looks, setLooks] = useState<LookResponse[]>([]);
+  const [metricas, setMetricas] = useState<Metricas | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(false);
 
@@ -40,9 +42,10 @@ export default function CompanyDashboardScreen(): React.ReactElement {
     setLoading(true);
     setError(false);
     try {
-      const [l, ps] = await Promise.all([fetchMyStore(), fetchTodosMeusLooks()]);
+      const [l, ps, m] = await Promise.all([fetchMyStore(), fetchTodosMeusLooks(), fetchMetricas(30).catch(() => null)]);
       setLoja(l);
       setLooks(ps);
+      setMetricas(m);
     } catch {
       setError(true);
     } finally {
@@ -56,7 +59,16 @@ export default function CompanyDashboardScreen(): React.ReactElement {
   const destaques = maisEngajadas(looks, 3);
 
   // Itens de "Precisa de você": só aparecem os que têm ocorrência.
+  const irEstoque = () => navigation.navigate('Catalogo');
   const pendencias = [
+    metricas && metricas.to_ship > 0 && {
+      id: 'a-enviar',
+      icone: 'truck-delivery-outline' as const,
+      cor: colors.seal.DEFAULT,
+      texto: `${contar(metricas.to_ship, 'pedido para enviar', 'pedidos para enviar')}`,
+      dica: 'Pagos no app. Separe, envie e marque como enviado.',
+      ir: () => navigation.navigate('Vendas'),
+    },
     resumo.semEstoque.length > 0 && {
       id: 'sem-estoque',
       icone: 'package-variant-closed-remove' as const,
@@ -76,9 +88,19 @@ export default function CompanyDashboardScreen(): React.ReactElement {
       icone: 'clock-outline' as const,
       cor: colors.warning,
       texto: `${contar(resumo.foraDoFeed.length, 'peça fora do feed', 'peças fora do feed')}`,
-      dica: 'Rascunho, em revisão ou removida.',
+      dica: 'Pausada, em revisão ou removida.',
     },
-  ].filter(Boolean) as { id: string; icone: any; cor: string; texto: string; dica: string }[];
+    metricas && metricas.stale_count > 0 && {
+      id: 'paradas',
+      icone: 'sleep' as const,
+      cor: colors.warning,
+      texto: `${contar(metricas.stale_count, 'peça parada', 'peças paradas')}`,
+      dica: `Sem vender há mais de ${metricas.stale_days} dias. Que tal rever foto ou preço?`,
+    },
+  ].filter(Boolean) as { id: string; icone: any; cor: string; texto: string; dica: string; ir?: () => void }[];
+
+  const receita = metricas ? Number(metricas.revenue || 0) : 0;
+  const delta = metricas ? variacao(receita, Number(metricas.revenue_prev || 0)) : null;
 
   return (
     <View className="flex-1 bg-background">
@@ -136,21 +158,35 @@ export default function CompanyDashboardScreen(): React.ReactElement {
           </View>
         ) : (
           <>
-            {/* ── A vitrine em números ── */}
+            {/* ── Vendas e vitrine em números ── */}
             <View className="bg-ink px-5 py-2">
               <StatBoard
                 items={[
-                  { label: 'Peças publicadas', value: formatarNumero(resumo.pecas) },
-                  { label: 'Curtidas', value: formatarNumero(resumo.curtidas) },
-                  { label: 'Salvos', value: formatarNumero(resumo.salvos) },
+                  ...(metricas
+                    ? [
+                      { label: 'Faturamento (30 dias)', value: formatarMoeda(receita) },
+                      { label: 'Vendas (30 dias)', value: formatarNumero(metricas.sales_count) },
+                    ]
+                    : []),
+                  { label: 'Peças cadastradas', value: formatarNumero(resumo.pecas) },
                   { label: 'Unidades em estoque', value: formatarNumero(resumo.unidades) },
                 ]}
               />
             </View>
+            {metricas ? (
+              <View className="flex-row items-center px-5 mt-2 gap-3">
+                <Text className="text-ink-4 text-sm font-display-italic flex-1">
+                  {delta == null ? 'Vendas no app e fora dele, somadas.' : `${formatarDelta(delta)} em relação aos 30 dias anteriores.`}
+                </Text>
+                <TouchableOpacity onPress={() => navigation.navigate('Vendas')} accessibilityRole="button" className="min-h-12 justify-center">
+                  <Text className="text-ink text-sm font-sans-bold underline">Ver vendas</Text>
+                </TouchableOpacity>
+              </View>
+            ) : null}
 
             {/* ── Precisa de você ── */}
             <View className="mt-6">
-              <SectionHeader title="Precisa de você" actionLabel="Ver catálogo" onAction={() => navigation.navigate('Catalogo')} />
+              <SectionHeader title="Precisa de você" actionLabel="Ver estoque" onAction={irEstoque} />
               <View className="px-4 gap-y-2">
                 {pendencias.length === 0 ? (
                   <View className="flex-row items-center gap-3 bg-surface border border-surface-5 rounded-card px-4 min-h-16">
@@ -163,7 +199,7 @@ export default function CompanyDashboardScreen(): React.ReactElement {
                   pendencias.map((p) => (
                     <TouchableOpacity
                       key={p.id}
-                      onPress={() => navigation.navigate('Catalogo')}
+                      onPress={p.ir ?? irEstoque}
                       accessibilityRole="button"
                       className="flex-row items-center bg-surface border border-surface-5 rounded-card px-4 min-h-16 gap-3"
                     >
@@ -206,16 +242,6 @@ export default function CompanyDashboardScreen(): React.ReactElement {
               </View>
             </View>
 
-            {/* ── Vendas: ainda não existem ── */}
-            <View className="mt-6 mx-4 border border-dashed border-ink-5 bg-surface-2 rounded-card p-4 flex-row gap-3">
-              <MaterialCommunityIcons name="cash-register" size={26} color={colors.ink[4]} />
-              <View className="flex-1">
-                <Text className="text-ink text-base font-display-bold">Vendas e faturamento</Text>
-                <Text className="text-ink-4 text-sm font-display-italic mt-0.5">
-                  Aparecem aqui quando o checkout e os pedidos existirem. Hoje o app mostra só o que já é real: o que o público curte e salva.
-                </Text>
-              </View>
-            </View>
           </>
         )}
       </ScrollView>
