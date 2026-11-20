@@ -110,6 +110,46 @@ function ListaPecas({ itens, valor, vazio }: { itens: PecaMetrica[]; valor: (p: 
   );
 }
 
+/** Vendas do app no período: taxa Lookly, tarifa do Mercado Pago e o líquido. */
+function QuantoVoceRecebe({ m }: { m: Metricas }) {
+  const t = m.platform_fee;
+  const app = Number(m.revenue_app || 0);
+  if (!t && app === 0) return null;
+  const pct = t ? String(Number(t.current_percent)).replace('.', ',') : '0';
+  return (
+    <View className="mt-6">
+      <SectionHeader title="Quanto você recebe" />
+      {t && (
+        <View className="mx-4 mb-3 flex-row gap-2 items-start bg-surface border border-seal rounded-card p-4">
+          <MaterialCommunityIcons name="tag-heart-outline" size={22} color={colors.seal.DEFAULT} />
+          <View className="flex-1">
+            <Text className="text-ink text-base font-display-bold">Taxa Lookly hoje: {pct}%</Text>
+            <Text className="text-ink-3 text-sm font-sans-medium mt-0.5">{t.message}</Text>
+          </View>
+        </View>
+      )}
+      {app > 0 && (
+        <View className="mx-4 bg-surface border border-surface-5 rounded-card px-5 py-2">
+          <StatBoard
+            tone="surface"
+            items={[
+              { label: 'Vendido no app', value: formatarMoeda(app, true) },
+              { label: 'Taxa Lookly', value: formatarMoeda(m.platform_fees ?? 0, true) },
+              { label: 'Tarifa Mercado Pago', value: formatarMoeda(m.mp_fees ?? 0, true) },
+              { label: 'Você recebe', value: formatarMoeda(m.net_revenue_app ?? app, true) },
+            ]}
+          />
+        </View>
+      )}
+      {app > 0 && (
+        <Text className="text-ink-4 text-sm font-display-italic px-5 mt-2">
+          Só vendas pelo app. O que você vende fora do app não paga taxa nem tarifa.
+        </Text>
+      )}
+    </View>
+  );
+}
+
 /**
  * Bloco de vendas e estoque das Insights (`GET /inventory/metrics`): tudo real —
  * pedidos pagos no app somados às vendas registradas fora dele.
@@ -164,6 +204,8 @@ export default function PainelVendas({ m }: { m: Metricas }): React.ReactElement
           </View>
         </View>
       )}
+
+      <QuantoVoceRecebe m={m} />
 
       {/* Lucro */}
       <View className="mt-6">
